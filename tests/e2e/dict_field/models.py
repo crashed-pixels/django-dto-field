@@ -2,32 +2,40 @@ from dataclasses import dataclass
 
 from django.db import models
 
-from django_dto_field.dto_field import DTOField
+from dict_field.adapters import MessageAdapter, MessageSchema
+from django_dto_field import DTOBinaryField, DTOCharField, DTOJSONField
 
 
-def default_payload() -> dict:
-    """Return a new default value for every model instance."""
-    return {"version": 1, "flags": []}
+@dataclass
+class Address:
+    city: str
 
 
 @dataclass
 class UserDTO:
     identifier: int
-    email: str
-    active: bool = True
+    address: Address
 
 
 class DictModel(models.Model):
-    payload: DTOField[dict] = DTOField()
+    text = DTOCharField(max_length=1000, default=dict, blank=True)
+    binary = DTOBinaryField(default=dict, blank=True)
+    json = DTOJSONField(default=dict, blank=True)
 
 
 class DataclassModel(models.Model):
-    payload = DTOField(schema=UserDTO)
+    text = DTOCharField(schema=UserDTO, max_length=1000)
+    binary = DTOBinaryField(schema=UserDTO)
+    json = DTOJSONField(schema=UserDTO)
 
 
 class NullableModel(models.Model):
-    payload = DTOField(schema=UserDTO, null=True, blank=True)
+    text = DTOCharField(schema=UserDTO, max_length=1000, null=True, blank=True)
+    binary = DTOBinaryField(schema=UserDTO, null=True, blank=True)
+    json = DTOJSONField(schema=UserDTO, null=True, blank=True)
 
 
-class DefaultDictModel(models.Model):
-    payload: DTOField[dict] = DTOField(default=default_payload)
+class CustomModel(models.Model):
+    text = DTOCharField(schema=MessageSchema, adapter=MessageAdapter, max_length=1000)
+    binary = DTOBinaryField(schema=MessageSchema, adapter=MessageAdapter)
+    json = DTOJSONField(schema=MessageSchema, adapter=MessageAdapter)
