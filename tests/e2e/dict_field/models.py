@@ -3,7 +3,9 @@ from dataclasses import dataclass
 from django.db import models
 
 from dict_field.adapters import MessageAdapter, MessageSchema
-from django_dto_field import DTOBinaryField, DTOCharField, DTOJSONField
+from django_dto_field.fields.binary import DTOBinaryField
+from django_dto_field.fields.char import DTOCharField
+from django_dto_field.fields.json import DTOJSONField
 
 
 @dataclass

@@ -2,8 +2,8 @@
 
 from typing import Any, TypeGuard
 
-from django_dto_field.adapters import DTOAdapter
-from django_dto_field.exceptions import DTOValidationError, SchemaError
+from django_dto_field.adapters.base import DTOAdapter
+from django_dto_field.exceptions.base import DTOValidationError, SchemaError
 
 
 class Message:

@@ -3,9 +3,11 @@ from datetime import date
 
 import pytest
 
-from django_dto_field.conversion import DTOConverter
-from django_dto_field.exceptions import DTOError, SchemaError, SerializationError
-from django_dto_field.storage import BinaryStorage, JSONStorage, TextStorage
+from django_dto_field.conversion.converter import DTOConverter
+from django_dto_field.exceptions.base import DTOError, SchemaError, SerializationError
+from django_dto_field.storage.binary import BinaryStorage
+from django_dto_field.storage.json import JSONStorage
+from django_dto_field.storage.text import TextStorage
 
 
 @dataclass

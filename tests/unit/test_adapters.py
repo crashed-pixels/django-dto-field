@@ -3,10 +3,13 @@ from dict_field.adapters import MappingAdapter, Message, MessageAdapter, Message
 from django.core.exceptions import ValidationError
 from django.db.migrations.writer import MigrationWriter
 
-from django_dto_field import DTOBinaryField, DTOCharField, DTOJSONField
-from django_dto_field.adapters import MsgspecAdapter
-from django_dto_field.conversion import DTOConverter
-from django_dto_field.exceptions import DTOFieldError, DTOValidationError, SchemaError
+from django_dto_field.adapters.msgspec import MsgspecAdapter
+from django_dto_field.conversion.converter import DTOConverter
+from django_dto_field.exceptions.base import DTOValidationError, SchemaError
+from django_dto_field.exceptions.django import DTOFieldError
+from django_dto_field.fields.binary import DTOBinaryField
+from django_dto_field.fields.char import DTOCharField
+from django_dto_field.fields.json import DTOJSONField
 
 
 def test_explicit_adapter_decouples_schema_from_dto_type():

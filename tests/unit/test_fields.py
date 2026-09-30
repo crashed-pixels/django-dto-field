@@ -5,8 +5,11 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection, models
 
-from django_dto_field import DTOBinaryField, DTOCharField, DTOJSONField
-from django_dto_field.exceptions import DTOError, DTOFieldError
+from django_dto_field.exceptions.base import DTOError
+from django_dto_field.exceptions.django import DTOFieldError
+from django_dto_field.fields.binary import DTOBinaryField
+from django_dto_field.fields.char import DTOCharField
+from django_dto_field.fields.json import DTOJSONField
 
 
 @dataclass
