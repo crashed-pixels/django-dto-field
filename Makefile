@@ -4,24 +4,21 @@ SHELL:=/usr/bin/env bash
 unit:
 	uv run pytest
 
-.PHONY: benchmark
-benchmark:
-	uv run python3 tests/e2e/manage.py benchmark
-
 .PHONY: typing
 typing:
 	uv run mypy src
 
 .PHONY: lint
 lint:
-	uv run ruff check --select I src
-	uv run ruff format --check src
+	uv run ruff check src tests
+	uv run ruff check --select D100,D101,D104 src
+	uv run ruff format --check src tests
 	uv run flake8 src --select=WPS
 
 .PHONY: format
 format:
-	uv run ruff check --select I --fix src
-	uv run ruff format src
+	uv run ruff check --fix src tests
+	uv run ruff format src tests
 
 .PHONY: test
 test: unit
