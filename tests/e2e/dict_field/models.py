@@ -1,27 +1,43 @@
-import dataclasses
+from dataclasses import dataclass
+
 from django.db import models
-from django_dto_field.dto_field import DTOField
+
+from dict_field.adapters import MessageAdapter, MessageSchema
+from django_dto_field.fields.binary import DTOBinaryField
+from django_dto_field.fields.char import DTOCharField
+from django_dto_field.fields.json import DTOJSONField
 
 
-class BenchmarkModel(models.Model):
-    json_field = models.JSONField(null=True)
-    dto_field = DTOField(null=True)
+@dataclass
+class Address:
+    city: str
 
 
-@dataclasses.dataclass
+@dataclass
 class UserDTO:
-    id: int
-    email: str
-    is_active: bool = True
+    identifier: int
+    address: Address
 
 
 class DictModel(models.Model):
-    payload = DTOField()
+    text = DTOCharField(max_length=1000, default=dict, blank=True)
+    binary = DTOBinaryField(default=dict, blank=True)
+    json = DTOJSONField(default=dict, blank=True)
 
 
 class DataclassModel(models.Model):
-    payload = DTOField(schema=UserDTO)
+    text = DTOCharField(schema=UserDTO, max_length=1000)
+    binary = DTOBinaryField(schema=UserDTO)
+    json = DTOJSONField(schema=UserDTO)
 
 
-class NullableSchemaModel(models.Model):
-    payload = DTOField(schema=UserDTO, null=True, blank=True)
+class NullableModel(models.Model):
+    text = DTOCharField(schema=UserDTO, max_length=1000, null=True, blank=True)
+    binary = DTOBinaryField(schema=UserDTO, null=True, blank=True)
+    json = DTOJSONField(schema=UserDTO, null=True, blank=True)
+
+
+class CustomModel(models.Model):
+    text = DTOCharField(schema=MessageSchema, adapter=MessageAdapter, max_length=1000)
+    binary = DTOBinaryField(schema=MessageSchema, adapter=MessageAdapter)
+    json = DTOJSONField(schema=MessageSchema, adapter=MessageAdapter)
