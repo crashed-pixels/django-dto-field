@@ -9,16 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- End-to-end coverage for `DTOField` ORM read and write paths, defaults, nullable values, and malformed DTO data.
+- `DTOCharField`, `DTOBinaryField`, and `DTOJSONField` with a shared Django lifecycle mixin.
+- Explicit schema conversion, nested dataclass/member validation, and JSON ModelForm support.
+- An explicit `DTOAdapter` protocol and per-field `adapter=` selection for future third-party integrations. Schema classes and DTO result types are independent; migrations preserve the adapter class. No third-party integrations or dependencies are added.
+- A common `DTOError` hierarchy with Django-compatible `DTOFieldError` boundary translation.
+- Replacement unit and Django E2E tests covering CRUD, bulk operations, expressions, JSON lookups, forms, migrations, fixtures, and malformed input.
 
 ### Changed
 
-- Refactor DTO serialization around a registry of DTO implementations for dictionaries and dataclasses.
-- Validate schema-bound `DTOField` values before serializing them for database writes.
+- **Breaking:** store native JSON text, bytes, or mappings instead of framed binary data. The current API does not support prerelease storage formats or imports.
+- Organize conversion, storage, model fields, form fields, and exceptions into separate packages.
+- Require strict mypy and 100% statement/branch coverage. Ruff now checks and formats source and tests.
 
-### Fixed
+### Removed
 
-- Respect Django `null` and `blank` validation rules in `DTOField`.
+- The old `DTOField`, global DTO registry, `HandlerDTO`, and `BinaryDTOParser`.
+- The stale benchmark target referencing a missing management command.
 
 ## [0.1.1-beta1] - 2026-07-08
 
