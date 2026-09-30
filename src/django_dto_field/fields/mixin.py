@@ -20,8 +20,7 @@ else:
 
 
 class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
-    """
-    Core logic for handling DTOs in Django fields.
+    """Core logic for handling DTOs in Django fields.
 
     This class mixin must be used in conjunction with a Django fields to provide
     seamless integration between DTOs and Django's field system.
