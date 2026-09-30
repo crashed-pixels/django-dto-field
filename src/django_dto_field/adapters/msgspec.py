@@ -1,3 +1,5 @@
+"""Validate dictionaries and nested dataclasses with :mod:`msgspec`."""
+
 from dataclasses import is_dataclass
 from typing import Any, Generic, TypeGuard, cast
 
@@ -12,7 +14,14 @@ from django_dto_field.exceptions.base import (
 
 
 class MsgspecAdapter(Generic[DTO]):
-    """Keep msgspec-specific schema handling outside the conversion pipeline."""
+    """Adapt dictionaries and dataclasses using strict msgspec conversion.
+
+    :param schema: :class:`dict` or an importable dataclass class.
+    :raises ~django_dto_field.exceptions.base.SchemaError: If unsupported.
+
+    Dataclass annotations are validated when loading mappings. Dumped values are
+    JSON-compatible, including nested dataclasses and supported temporal values.
+    """
 
     def __init__(self, schema: type[DTO]) -> None:
         supported = schema is dict or is_dataclass(schema)

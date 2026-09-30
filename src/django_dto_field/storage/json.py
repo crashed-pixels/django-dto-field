@@ -1,14 +1,17 @@
+"""Keep JSON-compatible mappings native for Django backend encoding."""
+
 from typing import Any
 
 
 class JSONStorage:
-    """The default storage for DTO.
+    """Return native JSON values without additional encoding.
 
-    Comes with :class:`DTOJSONField`.
+    Used by :class:`~django_dto_field.fields.json.DTOJSONField`. Django's backend
+    handles JSON encoding; decoded values pass through unchanged.
     """
 
     def encode(self, payload: dict[str, Any]) -> object:
-        """Just return the pure mapping for comparing with :class:`JSONField`."""
+        """Return the mapping for Django's JSON adapter."""
         return payload
 
     def decode(self, raw: object) -> object:

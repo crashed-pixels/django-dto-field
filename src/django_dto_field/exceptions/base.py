@@ -1,14 +1,32 @@
+"""Define library errors independent of Django validation."""
+
+
 class DTOError(Exception):
-    """Base exception for django-dto-field."""
+    """Base exception for all library-defined failures.
+
+    Catch this class to handle conversion and storage failures independently of
+    Django. Its subclasses retain their original failure as ``__cause__`` when
+    translating errors from another library.
+    """
 
 
 class SchemaError(DTOError):
-    """The requested DTO schema is unsupported."""
+    """Report a schema unsupported by the selected adapter.
+
+    Raised when an adapter cannot configure the supplied ``schema`` class.
+    """
 
 
 class SerializationError(DTOError):
-    """A value cannot be represented in the storage format."""
+    """Report data that cannot be encoded or decoded in the storage format.
+
+    Used for unsupported values, malformed JSON, and incompatible buffer types.
+    """
 
 
 class DTOValidationError(DTOError):
-    """A value does not satisfy its DTO schema."""
+    """Report a DTO instance or mapping that violates its schema.
+
+    Validation concerns DTO structure and members, rather than Django's
+    ``null``, ``blank``, or field-validator rules.
+    """

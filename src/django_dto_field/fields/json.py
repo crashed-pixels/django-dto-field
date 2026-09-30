@@ -1,3 +1,5 @@
+"""Preserve native Django JSON lookups alongside complete DTO conversion."""
+
 from typing import TYPE_CHECKING, Any
 
 from django.db import models
@@ -15,9 +17,12 @@ else:
 
 
 class DTOJSONField(DTOFieldMixin[DTO], JSONField):
-    """A Django JSONField with DTO mixin.
+    """Combine DTO conversion with Django's native JSON field.
 
-    Because Django JSONFiled provides lookups we must support them for DTO's object.
+    Whole values are validated using the selected schema. Key lookup operands
+    and projections remain native JSON values, without whole-DTO validation.
+    SQL NULL and explicit JSON null retain Django's distinct semantics.
+    See :class:`~django_dto_field.fields.mixin.DTOFieldMixin` for constructor options.
     """
 
     storage = JSONStorage()

@@ -1,3 +1,5 @@
+"""Translate internal failures at the Django boundary, retaining their causes."""
+
 from collections.abc import Generator
 from contextlib import contextmanager
 
@@ -7,7 +9,12 @@ from django_dto_field.exceptions.base import DTOError
 
 
 class DTOFieldError(ValidationError, DTOError):
-    """Invalid DTO input or persisted data at the Django boundary."""
+    """Expose library failures as Django validation errors.
+
+    Inherits both :class:`django.core.exceptions.ValidationError` and
+    :class:`~django_dto_field.exceptions.base.DTOError`. Internal failures are
+    translated by :func:`field_errors` with their original ``__cause__`` retained.
+    """
 
 
 @contextmanager

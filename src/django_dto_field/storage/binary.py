@@ -1,3 +1,5 @@
+"""Encode and decode UTF-8 JSON bytes for binary field storage."""
+
 from typing import Any
 
 import msgspec
@@ -7,9 +9,11 @@ from django_dto_field.storage.json import JSONStorage
 
 
 class BinaryStorage(JSONStorage):
-    """Using to encode and decode JSON mapping to and from binary.
+    """Convert JSON mappings to bytes and accept database buffer representations.
 
-    Comes with :class:`DTOBinaryField`.
+    Used by :class:`~django_dto_field.fields.binary.DTOBinaryField`. Decoding
+    accepts strings, bytes, bytearrays, and memoryviews. Codec failures raise
+    :class:`~django_dto_field.exceptions.base.SerializationError`.
     """
 
     def encode(self, payload: dict[str, Any]) -> bytes:

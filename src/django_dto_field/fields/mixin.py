@@ -1,3 +1,5 @@
+"""Integrate DTO conversion with Django field lifecycle hooks."""
+
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar, Generic
 
@@ -5,13 +7,11 @@ from django import forms
 from django.db import models
 from django.db.backends.base.base import BaseDatabaseWrapper
 
-from django_dto_field.adapters import DTOAdapter
-from django_dto_field.adapters.base import DTO
-from django_dto_field.conversion import DTOConverter
-from django_dto_field.exceptions import DTOFieldError
-from django_dto_field.exceptions.django import field_errors
-from django_dto_field.forms import DTOFormField
-from django_dto_field.storage import JSONStorage
+from django_dto_field.adapters.base import DTO, DTOAdapter
+from django_dto_field.conversion.converter import DTOConverter
+from django_dto_field.exceptions.django import DTOFieldError, field_errors
+from django_dto_field.forms.json import DTOFormField
+from django_dto_field.storage.json import JSONStorage
 
 if TYPE_CHECKING:
     Field = models.Field[Any, Any]
@@ -22,68 +22,62 @@ else:
 class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     """Core logic for handling DTOs in Django fields.
 
-    This class mixin must be used in conjunction with a Django fields to provide
-    seamless integration between DTOs and Django's field system.
+    Combine this mixin with a native Django field to validate and convert DTOs.
 
-    We currently support:
-    - :class:`DTOBinaryField` for Django `BinaryField`
-    - :class:`DTOCharField` for Django `CharField`
-    - :class:`DTOJSONField` for Django `JSONField`
+    :param schema: Importable schema class; defaults to :class:`dict`.
+    :param adapter: Importable class implementing
+        :class:`~django_dto_field.adapters.base.DTOAdapter`.
+    :param args: Positional arguments forwarded to the native Django field.
+    :param kwargs: Keyword arguments forwarded to the native Django field.
+
+    Supported fields:
+
+    * :class:`~django_dto_field.fields.binary.DTOBinaryField` for binary columns.
+    * :class:`~django_dto_field.fields.char.DTOCharField` for text columns.
+    * :class:`~django_dto_field.fields.json.DTOJSONField` for native JSON columns.
 
     Schema
     ------
 
-    While using a `DTO<your-choice>Field` you can provide two optional
-    key-value args. On of it is `schema`.
-
-    By setting `schema` you can specify the schema of your DTO object for validation
-    and working with it out-of-the-box with Django field.
-
-    By default schema is not set and you will work with `dict` object.
-
-    We currently support:
-    - `dataclass` for dataclasses objects
+    Set ``schema`` to an importable dataclass class for typed validation and
+    reconstruction. Without a schema, the field works with dictionaries.
+    Schema and adapter classes are preserved in Django migrations.
 
     Adapter
     -------
 
-    The second optional key-value arg is `adapter`.
+    ``adapter`` selects the schema-specific validation and conversion strategy.
+    The default is :class:`~django_dto_field.adapters.msgspec.MsgspecAdapter`,
+    which handles dictionaries and dataclasses. Custom adapters may return a DTO
+    whose class differs from the schema class.
 
-    The :class:`DTOAdapter` allows you to specify a validation and conversion strategy
-    for your type of DTO.
-
-    If you use supported DTO types, it is better to use builtin adapters. They will
-    be selected based on the provided DTO type.
-
-    We currently support:
-    - :class:`MsgspecAdapter` for `dict` and `dataclass` DTO's
-
-    Convertor
+    Converter
     ---------
 
-    After defining schema and adapter, the :class:`DTOConverter` will be used in Django field
-    to handle the conversion between the DTO and its database representation.
+    :class:`~django_dto_field.conversion.converter.DTOConverter` coordinates
+    conversion between DTOs and mappings. Storage handles the native field value.
 
     Let's say you have this DTO dataclass:
 
     >>> from dataclasses import dataclass
 
     >>> @dataclass
-    >>> class Address:
+    ... class Address:
     ...     city: str
 
     >>> @dataclass
-    >>> class Customer:
+    ... class Customer:
     ...     name: str
     ...     address: Address
 
     And define Django model like this:
 
     >>> from django.db import models
-    >>> class MyModel(models.Model):
+    >>> from django_dto_field.fields.json import DTOJSONField
+    >>> class Order(models.Model):
     ...     customer = DTOJSONField(schema=Customer)
 
-    Now you trying to save model:
+    Save an instance after creating the model's database table:
 
     >>> order = Order.objects.create(
     ...     customer=Customer(
@@ -92,13 +86,15 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     ...     )
     ... )
 
-    During the save, converter will:
-    1. Using adapter asks is the value recognized DTO.
-    2. Converting DTO to `dict`.
-    3. Validate the `dict` through the adapter before storage.
+    During a literal write, the converter:
+
+    #. Recognizes the DTO through its adapter.
+    #. Converts the DTO to a JSON-compatible dictionary.
+    #. Validates the dictionary through the adapter before storage.
 
     The converter coordinates conversion and validation; it does not write
-    to the database. For this field use storage class variable.
+    to the database. Assignment alone does not validate. Call ``full_clean()``
+    to run Django field validators as well as schema validation.
 
     Storage
     -------
@@ -106,16 +102,15 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     Basic usage of mixin is:
 
     >>> from django.db.models import CharField
+    >>> from django_dto_field.storage.text import TextStorage
     >>> class MyDTOField(DTOFieldMixin, CharField):
     ...     storage = TextStorage()
 
-    By default all DTO's converts to JSON compatible format using :class:`JSONStorage`. But
-    for the other fields we must create a adapter to storing DTO in correct format for Django.
+    Storage strategies convert mappings to native Django field values:
 
-    Here is current adapters:
-    - :class:`JSONStorage` for :class:`DTOJSONField` (basic and default)
-    - :class:`TextStorage` for :class:`DTOCharField`
-    - :class:`BinaryStorage` for :class:`DTOBinaryField`
+    * :class:`~django_dto_field.storage.json.JSONStorage` leaves JSON values native.
+    * :class:`~django_dto_field.storage.text.TextStorage` produces JSON text.
+    * :class:`~django_dto_field.storage.binary.BinaryStorage` produces JSON bytes.
     """
 
     empty_strings_allowed = False
