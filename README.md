@@ -1,9 +1,5 @@
 <p align="center">
-    <img src="docs/media/logo.png" style="max-height: 200px; max-width: 200px;" alt="django-dto-field logo"/>
-    <br/>
-    <b style="font-size: 45;">django-dto-field</b>
-    <br/>
-    <i>Use your favorite DTO's in Django models</i>
+    <img src="docs/media/logo.png" width="600" alt="django-dto-field logo"/>
     <br/>
     <br/>
     <a href="https://pypi.org/project/django-dto-field/" target="_blank">
@@ -11,13 +7,16 @@
     </a>
     <a href="https://github.com/skv0zsneg/django-dto-field/actions/workflows/typing_and_lint.yml" target="_blank">
         <img src="https://github.com/skv0zsneg/django-dto-field/actions/workflows/typing_and_lint.yml/badge.svg" alt="Typing and Linters"/>
-    </a>
-    <br/>
     <a href="https://pypi.org/project/django-dto-field/" target="_blank">
         <img src="https://img.shields.io/pypi/v/django-dto-field.svg" alt="PyPi"/>
     </a>
+    </a>
+    <br/>
     <a href="https://github.com/wemake-services/wemake-python-styleguide" target="_blank">
         <img src="https://img.shields.io/badge/style-wemake-000000.svg" alt="wemake style"/>
+    </a>
+    <a href="https://github.com/crashed-pixels" target="_blank">
+        <img src="https://img.shields.io/badge/crashed-pixels-green?style=flat" alt="wemake style"/>
     </a>
 </p>
 
@@ -36,55 +35,39 @@
 
 ## Quick start
 
-Install using pip:
+Installing:
 
 ```bash
 pip install django-dto-field
 ```
 
-or uv:
-
-```bash
-uv add django-dto-field
-```
-
-Define your DTO. For example through `dataclass`:
+Usage:
 
 ```python
 >>> from dataclasses import dataclass
+>>> from django.db import models
+>>> from django_dto_field.fields.json import DTOJSONField
 
->>> @dataclass
+>>> @dataclass  # Define DTO
 ... class Address:
 ...    city: str
 
 >>> @dataclass
-... class Customer:
+... class Customer:  # Use nested DTO
 ...    name: str
 ...    address: Address
-```
 
-Create model and add field:
-
-```python
->>> from django.db import models
->>> from django_dto_field.fields.json import DTOJSONField
-
->>> class Order(models.Model):
+>>> class Order(models.Model):  # Add field to model
 ...    customer = DTOJSONField(schema=Customer)
-```
 
-After migrations you can use it like this:
+>>> order = Order.objects.create(  # Save it
+...    customer=Customer("Alice", Address("London"))
+... )
 
-```python
->>> from myapp.models import Order
->>> from myapp.dto import Address, Customer
-
->>> order = Order.objects.create(customer=Customer("Alice", Address("London")))
->>> order.refresh_from_db()
-
+>>> order.refresh_from_db()  # Get it
 >>> assert order.customer == Customer("Alice", Address("London"))
 >>> assert isinstance(order.customer.address, Address)
 
->>> Order.objects.filter(customer__address__city="London")  # Lookups
+>>> Order.objects.filter(customer__address__city="London")  # Use lookups
 >>> Order.objects.values_list("customer__address", flat=True)  # Return dictionary
 ```
