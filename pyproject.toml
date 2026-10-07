@@ -34,9 +34,11 @@ dev = [
     "wemake-python-styleguide>=1.6.1,<2",
     "hypothesis>=6.100,<7",
 ]
+mysql = ["mysqlclient>=2.2.1,<3"]
+oracle = ["oracledb>=2.3,<4"]
 
 [tool.uv]
-default-groups = "all"
+default-groups = ["dev"]
 
 [build-system]
 requires = ["uv_build>=0.11.27,<0.12.0"]

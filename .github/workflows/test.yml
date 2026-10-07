@@ -39,3 +39,52 @@ jobs:
 
       - name: Run tests
         run: make test
+
+  e2e-databases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: postgresql
+            group: dev
+          - database: mysql
+            group: mysql
+          - database: mariadb
+            group: mysql
+          - database: oracle
+            group: oracle
+    env:
+      DTO_TEST_DB: ${{ matrix.database }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.12"
+
+      - name: Install MySQL client libraries
+        if: matrix.group == 'mysql'
+        run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
+
+      - name: Install dependencies
+        run: uv sync --frozen --group "${{ matrix.group }}"
+
+      - name: Start ${{ matrix.database }}
+        run: docker compose --profile "${{ matrix.database }}" up -d --wait "${{ matrix.database }}"
+
+      - name: Run E2E tests
+        run: make e2e
+
+      - name: Stop database
+        if: always()
+        run: docker compose --profile "${{ matrix.database }}" down -v
