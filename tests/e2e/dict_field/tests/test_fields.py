@@ -2,9 +2,11 @@ import json
 
 import pytest
 from django import forms
+from django.apps import apps
 from django.core import serializers
 from django.core.exceptions import ValidationError
 from django.db import connection, models
+from django.db.migrations.loader import MigrationLoader
 
 from dict_field.adapters import Message
 from dict_field.models import (
@@ -23,6 +25,15 @@ DTO_CASES = (
     (DataclassModel, UserDTO(1, Address("London"))),
     (CustomModel, Message(1)),
 )
+
+
+def test_test_app_tables_follow_models_without_migrations():
+    loader = MigrationLoader(connection)
+    assert "dict_field" in loader.unmigrated_apps
+    model_tables = {
+        model._meta.db_table for model in apps.get_app_config("dict_field").get_models()
+    }
+    assert model_tables <= set(connection.introspection.table_names())
 
 
 @pytest.mark.parametrize("model, payload", DTO_CASES)
