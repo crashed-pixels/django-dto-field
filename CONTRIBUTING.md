@@ -106,14 +106,37 @@ Docker when running Oracle; its image may take longer to start on the first run.
 and `DTO_TEST_DB_PASSWORD` override the test settings for an external server.
 The Compose credentials are for disposable local databases only. Django creates
 and destroys an isolated test database (or test user and tablespace for Oracle)
-on every run. CI runs the SQLite/Python matrix and a separate E2E matrix for
-the four server backends.
+on every run.
 
-To exercise a newer Django version without updating the lockfile:
+### Python, Django, and database matrix
+
+CI runs tox for each supported Python × Django × database combination. SQLite
+environments run the entire suite with 100% source coverage; server database
+environments run the E2E suite. The Django versions are 4.2, 5.2, 6.0, and 6.1.
+Python 3.10–3.11 run Django 4.2/5.2, Python 3.12 runs all four, and Python
+3.13–3.14 run Django 5.2/6.0/6.1.
+
+Run the default SQLite environment locally with `uvx --with tox-uv tox`. To
+select a combination, use `py<version>-django<version>-<database>`:
 
 ```bash
-uv run --with 'django>=5.2,<5.3' pytest -n 0 --no-cov
+uvx --with tox-uv tox -e py312-django52-sqlite
+docker compose --profile postgresql up -d --wait postgresql
+uvx --with tox-uv tox -e py312-django52-postgresql
+docker compose --profile postgresql down -v
 ```
+
+Install other Python versions with `uv python install 3.10 3.11 3.12 3.13 3.14`.
+For MySQL/MariaDB, the same system client libraries are required for tox as
+for `make e2e`. On macOS, set
+`PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"` when invoking
+tox so it can compile `mysqlclient`. Oracle uses the pure-Python `oracledb`
+thin client. tox installs the appropriate Django and database driver into
+each environment independently of `uv.lock`.
+
+JSON `__in` lookups are expected to fail on MySQL/MariaDB with Django versions
+before 6.1: those Django backends compare JSON values against text in that
+lookup. Exact JSON lookups remain covered.
 
 ## Submitting a Pull Request
 
