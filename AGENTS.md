@@ -7,7 +7,7 @@
 - For a focused test without the whole-library coverage gate or parallel workers: `uv run pytest -n 0 --no-cov tests/unit/test_conversion.py::test_nested_dataclass_round_trip`. Use the same flags with a file or directory for a focused suite.
 - `make all-checks` cleans caches/coverage output, then runs lint, typing, and tests. Use TDD for features/fixes: observe a failing behavior test before implementing; maintain 100% coverage (`CONTRIBUTING.md`).
 - `make lint` checks Ruff lint/formatting on `src tests`, docstring presence with `ruff check --select D100,D101,D104 src`, and Flake8 **WPS-only** rules on `src`. `make format` fixes Ruff issues/formatting; `make typing` runs strict `mypy src`. Plain `ruff check` does not reproduce the lint target.
-- E2E settings are in `tests/e2e/django_app/settings.py`: in-memory SQLite, no external database service. Pytest config supplies `DJANGO_SETTINGS_MODULE=django_app.settings` and adds `src` and `tests/e2e` to the import path.
+- E2E settings are in `tests/e2e/django_app/settings.py`: in-memory SQLite by default; `DTO_TEST_DB=postgresql|mysql|mariadb|oracle` selects a Docker Compose service. `make e2e` runs the E2E tests without the whole-library coverage gate or parallel database workers. Pytest config supplies `DJANGO_SETTINGS_MODULE=django_app.settings` and adds `src` and `tests/e2e` to the import path.
 - The E2E `dict_field` app is unmigrated through `MIGRATION_MODULES` in its test settings. Pytest creates its tables from the current models; do not generate or check in migrations for the test app.
 - Test another Django version without changing the lockfile with `uv run --with 'django>=5.2,<5.3' pytest -n 0 --no-cov`.
 
