@@ -39,7 +39,7 @@ class DTOJSONField(DTOFieldMixin[DTO], JSONField):
         return self.to_python(decoded)
 
     def get_prep_value(self, value: Any) -> Any:  # noqa: WPS110
-        # NOTE: Lookup RHS values may be JSON scalars or partial objects, not full DTOs.
+        # Lookup operands may be JSON scalars or partial objects, not full DTOs.
         if not isinstance(value, dict) and self.converter.is_instance(value):
             return self._prepare(value)
         return value
@@ -53,7 +53,7 @@ class DTOJSONField(DTOFieldMixin[DTO], JSONField):
         if isinstance(prepared, models.Value) and isinstance(
             prepared.output_field, DTOJSONField
         ):
-            # NOTE: Keep Value(None) intact: JSON null is distinct from SQL NULL.
+            # Value(None) represents JSON null rather than SQL NULL.
             if prepared.value is not None:
                 prepared = prepared.value
         if not hasattr(prepared, "resolve_expression"):
