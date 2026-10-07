@@ -1,7 +1,8 @@
 """Verify generated payloads through Django persistence and JSON projections."""
 
 import pytest
-from hypothesis import given, settings
+from django.db import connection
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from dict_field.models import Address, DataclassModel, DictModel, UserDTO
@@ -23,6 +24,7 @@ JSON_VALUES = st.recursive(
 
 @pytest.mark.django_db
 @settings(max_examples=30, deadline=None)
+@example("")
 @given(JSON_VALUES)
 def test_generated_json_survives_orm_and_key_projection(nested):
     payload = {"nested": nested}
@@ -30,16 +32,20 @@ def test_generated_json_survives_orm_and_key_projection(nested):
     try:
         instance.refresh_from_db()
         assert instance.text == instance.binary == instance.json == payload
-        assert (
-            DictModel.objects.values_list("json__nested", flat=True).get(pk=instance.pk)
-            == nested
+        projection = DictModel.objects.values_list("json__nested", flat=True).get(
+            pk=instance.pk
         )
+        if connection.vendor == "oracle" and nested == "":
+            assert projection is None
+        else:
+            assert projection == nested
     finally:
         instance.delete()
 
 
 @pytest.mark.django_db
 @settings(max_examples=30, deadline=None)
+@example(0, "")
 @given(st.integers(min_value=-10000, max_value=10000), TEXT)
 def test_generated_dataclass_survives_bulk_insert(identifier, city):
     payload = UserDTO(identifier, Address(city))
@@ -49,8 +55,9 @@ def test_generated_dataclass_survives_bulk_insert(identifier, city):
     try:
         instance.refresh_from_db()
         assert instance.text == instance.binary == instance.json == payload
-        assert DataclassModel.objects.filter(
+        found = DataclassModel.objects.filter(
             pk=instance.pk, json__address__city=city
         ).exists()
+        assert found is (connection.vendor != "oracle" or city != "")
     finally:
         instance.delete()

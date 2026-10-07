@@ -32,6 +32,8 @@ else:
         "HOST": host,
         "PORT": port,
     }
+    if backend in ("mysql", "mariadb"):
+        database["OPTIONS"] = {"charset": "utf8mb4"}
     if backend == "oracle":
         database.update(
             NAME=f"{host}:{port}/{name}",

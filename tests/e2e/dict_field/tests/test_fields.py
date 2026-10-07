@@ -1,5 +1,6 @@
 import json
 
+import django
 import pytest
 from django import forms
 from django.apps import apps
@@ -59,6 +60,12 @@ def test_create_read_and_full_clean(model, payload):
 def test_orm_filters_accept_dto_values(model, payload, field_name):
     instance = model.objects.create(**dict.fromkeys(FIELD_NAMES, payload))
     assert model.objects.filter(**{field_name: payload}).get() == instance
+    if (
+        field_name == "json"
+        and connection.vendor == "mysql"
+        and django.VERSION[:2] < (6, 1)
+    ):
+        pytest.xfail("Django <6.1 MySQL JSONField __in compares JSON against text")
     assert model.objects.filter(**{f"{field_name}__in": [payload]}).get() == instance
 
 
