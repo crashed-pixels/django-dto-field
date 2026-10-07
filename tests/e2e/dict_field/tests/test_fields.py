@@ -64,15 +64,24 @@ def test_orm_filters_accept_dto_values(model, payload, field_name):
 
 def test_native_database_representations():
     instance = DictModel.objects.create(**dict.fromkeys(FIELD_NAMES, {"a": 1}))
+    columns = ", ".join(connection.ops.quote_name(name) for name in FIELD_NAMES)
+    table = connection.ops.quote_name(DictModel._meta.db_table)
+    primary_key = connection.ops.quote_name("id")
     with connection.cursor() as cursor:
         cursor.execute(
-            'SELECT "text", "binary", "json" FROM "dict_field_dictmodel" WHERE id = %s',
+            f"SELECT {columns} FROM {table} WHERE {primary_key} = %s",
             [instance.pk],
         )
         text, binary, json_value = cursor.fetchone()
+    if hasattr(binary, "read"):
+        binary = binary.read()
+    if hasattr(json_value, "read"):
+        json_value = json_value.read()
     assert text == '{"a":1}'
     assert bytes(binary) == b'{"a":1}'
-    assert json.loads(json_value) == {"a": 1}
+    assert (json.loads(json_value) if isinstance(json_value, str) else json_value) == {
+        "a": 1
+    }
 
 
 @pytest.mark.parametrize(
@@ -85,7 +94,7 @@ def test_native_database_representations():
 )
 def test_bulk_and_expression_writes(model, payload, changed):
     instances = model.objects.bulk_create(
-        [model(**dict.fromkeys(FIELD_NAMES, payload)) for _ in range(2)]
+        [model(pk=pk, **dict.fromkeys(FIELD_NAMES, payload)) for pk in (1, 2)]
     )
     for instance in instances:
         for field_name in FIELD_NAMES:

@@ -6,7 +6,10 @@ from hypothesis import strategies as st
 
 from dict_field.models import Address, DataclassModel, DictModel, UserDTO
 
-TEXT = st.text(alphabet=st.characters(exclude_categories=("Cs",)), max_size=30)
+TEXT = st.text(
+    alphabet=st.characters(exclude_categories=("Cs",), exclude_characters="\x00"),
+    max_size=30,
+)
 JSON_VALUES = st.recursive(
     st.one_of(
         st.none(), st.booleans(), st.integers(min_value=-10000, max_value=10000), TEXT
@@ -41,7 +44,7 @@ def test_generated_json_survives_orm_and_key_projection(nested):
 def test_generated_dataclass_survives_bulk_insert(identifier, city):
     payload = UserDTO(identifier, Address(city))
     instance = DataclassModel.objects.bulk_create(
-        [DataclassModel(text=payload, binary=payload, json=payload)]
+        [DataclassModel(pk=1, text=payload, binary=payload, json=payload)]
     )[0]
     try:
         instance.refresh_from_db()
