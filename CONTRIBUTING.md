@@ -130,15 +130,27 @@ Install other Python versions with `uv python install 3.10 3.11 3.12 3.13 3.14`.
 For MySQL/MariaDB, the same system client libraries are required for tox as
 for `make e2e`. On macOS, set
 `PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"` when invoking
-tox so it can compile `mysqlclient`. Oracle uses the pure-Python `oracledb`
-thin client. tox installs the appropriate Django and database driver into
-each environment independently of `uv.lock`.
+tox so it can compile `mysqlclient`. Django 5.2 and later use the `oracledb`
+thin client. Django 4.2 requires `cx_Oracle` and Oracle Instant Client; tox
+installs the driver, while CI installs the client. On macOS, download and mount
+the Oracle Instant Client Basic Light image for your architecture, then run
+(using an ARM64 image as an example):
+
+```bash
+DTO_ORACLE_CLIENT_LIB_DIR=/Volumes/instantclient-basiclite-macos.arm64-23.26.2.0.0 \
+  uvx --with tox-uv tox -e py310-django42-oracle
+```
+
+tox installs the appropriate Django and database driver into each environment
+independently of `uv.lock`.
 
 JSON `__in` lookups are expected to fail on MySQL/MariaDB with Django versions
 before 6.1: those Django backends compare JSON values against text in that
 lookup. On Oracle with Django versions before 6.1, JSON is stored as NCLOB;
 Oracle rejects NCLOB membership comparisons with `ORA-22848`. The tests check
-that backend error explicitly, while exact JSON lookups remain covered.
+that backend error explicitly. Django 4.2 also fails to match JSON key strings
+on Oracle; the E2E tests still exercise scalar key lookups and DTO round trips.
+Whole-value exact JSON lookups remain covered.
 
 ## Submitting a Pull Request
 
