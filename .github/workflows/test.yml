@@ -54,6 +54,21 @@ jobs:
         if: matrix.database == 'mysql' || matrix.database == 'mariadb'
         run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
 
+      - name: Install Oracle Instant Client for Django 4.2
+        if: matrix.database == 'oracle' && matrix.django-version == '42'
+        run: |
+          sudo apt-get update && sudo apt-get install -y libaio1t64 unzip
+          if [ ! -e /usr/lib/x86_64-linux-gnu/libaio.so.1 ]; then
+            sudo ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+          fi
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/oracle-basiclite.zip" \
+            https://download.oracle.com/otn_software/linux/instantclient/2326300/instantclient-basiclite-linux.x64-23.26.3.0.0.zip
+          echo "88c2b59d473f0d34615556dbee51cb90cce61a9104b4c1c772d13c344fba19c9  $RUNNER_TEMP/oracle-basiclite.zip" | sha256sum --check
+          sudo mkdir -p /opt/oracle
+          sudo unzip -q "$RUNNER_TEMP/oracle-basiclite.zip" -d /opt/oracle
+          echo 'LD_LIBRARY_PATH=/opt/oracle/instantclient_23_26' >> "$GITHUB_ENV"
+
       - name: Start ${{ matrix.database }}
         if: matrix.database != 'sqlite'
         run: docker compose --profile "${{ matrix.database }}" up -d --wait "${{ matrix.database }}"
