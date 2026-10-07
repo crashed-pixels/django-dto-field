@@ -1,5 +1,6 @@
 <p align="center">
-    <img src="docs/media/logo.png" width="600" alt="django-dto-field logo"/>
+    <br/>
+    <img src="docs/media/logo.png" width="700" alt="django-dto-field logo"/>
     <br/>
     <br/>
     <a href="https://pypi.org/project/django-dto-field/" target="_blank">
