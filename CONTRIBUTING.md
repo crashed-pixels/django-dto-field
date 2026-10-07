@@ -136,7 +136,9 @@ each environment independently of `uv.lock`.
 
 JSON `__in` lookups are expected to fail on MySQL/MariaDB with Django versions
 before 6.1: those Django backends compare JSON values against text in that
-lookup. Exact JSON lookups remain covered.
+lookup. On Oracle with Django versions before 6.1, JSON is stored as NCLOB;
+Oracle rejects NCLOB membership comparisons with `ORA-22848`. The tests check
+that backend error explicitly, while exact JSON lookups remain covered.
 
 ## Submitting a Pull Request
 
