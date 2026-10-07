@@ -18,17 +18,15 @@ from dict_field.models import (
 
 pytestmark = pytest.mark.django_db
 FIELD_NAMES = ("text", "binary", "json")
-
-
-@pytest.mark.parametrize(
-    "model, payload",
-    [
-        (DictModel, {"nested": [1, None, True, "Привет"]}),
-        (DataclassModel, UserDTO(1, Address("London"))),
-        (CustomModel, Message(1)),
-    ],
+DTO_CASES = (
+    (DictModel, {"nested": [1, None, True, "Привет"]}),
+    (DataclassModel, UserDTO(1, Address("London"))),
+    (CustomModel, Message(1)),
 )
-def test_crud_and_full_clean(model, payload):
+
+
+@pytest.mark.parametrize("model, payload", DTO_CASES)
+def test_create_read_and_full_clean(model, payload):
     instance = model(**dict.fromkeys(FIELD_NAMES, payload))
     instance.full_clean()
     instance.save()
@@ -43,8 +41,14 @@ def test_crud_and_full_clean(model, payload):
             getattr(model.objects.defer(field_name).get(pk=instance.pk), field_name)
             == payload
         )
-        assert model.objects.filter(**{field_name: payload}).exists()
-        assert model.objects.filter(**{f"{field_name}__in": [payload]}).exists()
+
+
+@pytest.mark.parametrize("model, payload", DTO_CASES)
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_orm_filters_accept_dto_values(model, payload, field_name):
+    instance = model.objects.create(**dict.fromkeys(FIELD_NAMES, payload))
+    assert model.objects.filter(**{field_name: payload}).get() == instance
+    assert model.objects.filter(**{f"{field_name}__in": [payload]}).get() == instance
 
 
 def test_native_database_representations():
