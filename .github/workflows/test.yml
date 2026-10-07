@@ -10,12 +10,28 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  test-matrix:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        django-version: ["42", "52", "60", "61"]
+        database: [sqlite, postgresql, mysql, mariadb, oracle]
+        exclude:
+          - python-version: "3.10"
+            django-version: "60"
+          - python-version: "3.10"
+            django-version: "61"
+          - python-version: "3.11"
+            django-version: "60"
+          - python-version: "3.11"
+            django-version: "61"
+          - python-version: "3.13"
+            django-version: "42"
+          - python-version: "3.14"
+            django-version: "42"
 
     steps:
       - uses: actions/checkout@v7
@@ -34,57 +50,19 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: uv sync --all-extras --dev
-
-      - name: Run tests
-        run: make test
-
-  e2e-databases:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - database: postgresql
-            group: dev
-          - database: mysql
-            group: mysql
-          - database: mariadb
-            group: mysql
-          - database: oracle
-            group: oracle
-    env:
-      DTO_TEST_DB: ${{ matrix.database }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-          python-version: "3.12"
-
       - name: Install MySQL client libraries
-        if: matrix.group == 'mysql'
+        if: matrix.database == 'mysql' || matrix.database == 'mariadb'
         run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
 
-      - name: Install dependencies
-        run: uv sync --frozen --group "${{ matrix.group }}"
-
       - name: Start ${{ matrix.database }}
+        if: matrix.database != 'sqlite'
         run: docker compose --profile "${{ matrix.database }}" up -d --wait "${{ matrix.database }}"
 
-      - name: Run E2E tests
-        run: make e2e
+      - name: Run Python ${{ matrix.python-version }} / Django ${{ matrix.django-version }} / ${{ matrix.database }}
+        run: |
+          python_version="${{ matrix.python-version }}"
+          uvx --with tox-uv tox -e "py${python_version/./}-django${{ matrix.django-version }}-${{ matrix.database }}"
 
       - name: Stop database
-        if: always()
+        if: always() && matrix.database != 'sqlite'
         run: docker compose --profile "${{ matrix.database }}" down -v
