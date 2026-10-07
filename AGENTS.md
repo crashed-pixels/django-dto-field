@@ -8,8 +8,8 @@
 - `make all-checks` cleans caches/coverage output, then runs lint, typing, and tests. Use TDD for features/fixes: observe a failing behavior test before implementing; maintain 100% coverage (`CONTRIBUTING.md`).
 - `make lint` checks Ruff lint/formatting on `src tests`, docstring presence with `ruff check --select D100,D101,D104 src`, and Flake8 **WPS-only** rules on `src`. `make format` fixes Ruff issues/formatting; `make typing` runs strict `mypy src`. Plain `ruff check` does not reproduce the lint target.
 - E2E settings are in `tests/e2e/django_app/settings.py`: in-memory SQLite, no external database service. Pytest config supplies `DJANGO_SETTINGS_MODULE=django_app.settings` and adds `src` and `tests/e2e` to the import path.
-- Test-model migrations are checked in. Generate them with `PYTHONPATH=src:tests/e2e DJANGO_SETTINGS_MODULE=django_app.settings uv run django-admin makemigrations dict_field`; there is no `manage.py`.
-- Check migration drift with `PYTHONPATH=src:tests/e2e DJANGO_SETTINGS_MODULE=django_app.settings uv run django-admin makemigrations --check --dry-run`. Test another Django version without changing the lockfile with `uv run --with 'django>=5.2,<5.3' pytest -n 0 --no-cov`.
+- The E2E `dict_field` app is unmigrated through `MIGRATION_MODULES` in its test settings. Pytest creates its tables from the current models; do not generate or check in migrations for the test app.
+- Test another Django version without changing the lockfile with `uv run --with 'django>=5.2,<5.3' pytest -n 0 --no-cov`.
 
 ## Implementation constraints
 

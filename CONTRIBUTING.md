@@ -66,11 +66,9 @@ We use a `Makefile` to standardize development workflows. All commands automatic
 | `make format` | Auto-fix imports (`ruff`) and format code (`ruff format`). |
 | `make all-checks` | Clean caches and run linting, typing, and tests (Recommended before PR). |
 
-The test app's migrations are checked in. After changing its models, run:
-
-```bash
-PYTHONPATH=src:tests/e2e DJANGO_SETTINGS_MODULE=django_app.settings uv run django-admin makemigrations dict_field
-```
+The E2E test app is unmigrated: Django creates its tables from the current
+models when pytest sets up its in-memory test database. Changes to test models
+do not require generating migration files.
 
 To exercise a newer Django version without updating the lockfile:
 
