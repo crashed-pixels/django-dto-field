@@ -48,6 +48,7 @@ Usage:
 >>> from django.db import models
 >>> from django_dto_field.fields.json import DTOJSONField
 
+
 >>> @dataclass  # Define DTO
 ... class Address:
 ...    city: str
@@ -57,12 +58,14 @@ Usage:
 ...    name: str
 ...    address: Address
 
+
 >>> class Order(models.Model):  # Add field to model
 ...    customer = DTOJSONField(schema=Customer)
 
 >>> order = Order.objects.create(  # Save it
 ...    customer=Customer("Alice", Address("London"))
 ... )
+
 
 >>> order.refresh_from_db()  # Get it
 >>> assert order.customer == Customer("Alice", Address("London"))
@@ -71,3 +74,30 @@ Usage:
 >>> Order.objects.filter(customer__address__city="London")  # Use lookups
 >>> Order.objects.values_list("customer__address", flat=True)  # Return dictionary
 ```
+
+## Fields
+
+Supported Django fields
+
+| Import | Django base | Stored value |
+| --- | --- | --- |
+| `django_dto_field.fields.json.DTOJSONField` | `JSONField` | Native JSON, encoded by Django |
+| `django_dto_field.fields.char.DTOCharField` | `CharField` | UTF-8 JSON text |
+| `django_dto_field.fields.binary.DTOBinaryField` | `BinaryField` | UTF-8 JSON bytes |
+
+## Help and contribute
+
+Have a question, spotted a bug, or want a new DTO integration? We'd love to hear
+from you in the [issue tracker](https://github.com/skv0zsneg/django-dto-field/issues).
+For bugs, include a minimal example, your Python/Django versions, and the expected
+and actual behavior.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, testing, and pull request guidance.
+Small improvements count too—clearer examples, documentation fixes, and tests
+are all welcome.
+The project uses unit, property-based, and Django integration tests with 100%
+statement/branch coverage, plus Ruff, WPS, and strict mypy checks.
+
+## License
+
+Available under the [MIT license](LICENSE).
