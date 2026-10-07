@@ -37,7 +37,7 @@ We require **100% statement and branch coverage** for all new and existing runti
 *   Coverage is enforced via `pytest-cov`.
 *   If you add a new feature or fix a bug, you **must** write tests for it. Run with `make test`.
 *   Use TDD: add a test describing the behavior, observe its failure, then implement and refactor with the tests passing.
-*   `make test` includes unit and Django E2E tests. E2E uses in-memory SQLite, with settings and import paths configured in `pyproject.toml`.
+*   `make test` includes unit and Django E2E tests using in-memory SQLite by default, with settings and import paths configured in `pyproject.toml`.
 *   For a focused suite: `uv run pytest -n 0 --no-cov tests/unit/test_conversion.py`. The default pytest invocation uses parallel workers and enforces coverage over the entire library.
 
 ### 2. Strict Typing
@@ -61,14 +61,53 @@ We use a `Makefile` to standardize development workflows. All commands automatic
 | Command | Description |
 | :--- | :--- |
 | `make test` | Run all unit and Django E2E tests with statement/branch coverage (alias for `make unit`). |
+| `make e2e` | Run Django E2E tests on the selected database (SQLite by default). |
 | `make typing` | Run strict `mypy` type checks on the `src` directory. |
 | `make lint` | Run Ruff lint/format checks on source and tests, and WPS checks on source. |
 | `make format` | Auto-fix imports (`ruff`) and format code (`ruff format`). |
 | `make all-checks` | Clean caches and run linting, typing, and tests (Recommended before PR). |
 
 The E2E test app is unmigrated: Django creates its tables from the current
-models when pytest sets up its in-memory test database. Changes to test models
-do not require generating migration files.
+models when pytest sets up the test database. Changes to test models do not
+require generating migration files.
+
+### E2E tests on SQL databases
+
+Django supports SQLite, PostgreSQL, MySQL, MariaDB, and Oracle. `make test` runs
+the entire suite on SQLite without Docker. To run the E2E suite on another backend,
+start its Docker Compose service, install the corresponding test driver, and set
+`DTO_TEST_DB`:
+
+| `DTO_TEST_DB` | Compose service | Driver group | Local port |
+| :--- | :--- | :--- | ---: |
+| `postgresql` | `postgresql` | `dev` (already installed) | 55432 |
+| `mysql` | `mysql` | `mysql` | 53306 |
+| `mariadb` | `mariadb` | `mysql` | 53307 |
+| `oracle` | `oracle` | `oracle` | 51521 |
+
+For example:
+
+```bash
+docker compose --profile postgresql up -d --wait postgresql
+DTO_TEST_DB=postgresql make e2e
+docker compose --profile postgresql down -v
+```
+
+For MySQL and MariaDB, install the MySQL client development libraries first
+(for example, `brew install mysql-client pkg-config` on macOS or
+`sudo apt-get install default-libmysqlclient-dev pkg-config` on Ubuntu), then
+run `uv sync --group mysql`. For Oracle, run `uv sync --group oracle`; the
+`oracledb` thin driver needs no Oracle client installation. PostgreSQL uses the
+driver from the default dev dependencies. Substitute the backend name in the
+Compose and `make e2e` commands above. Allow at least 4 GB of memory for
+Docker when running Oracle; its image may take longer to start on the first run.
+
+`DTO_TEST_DB_HOST`, `DTO_TEST_DB_PORT`, `DTO_TEST_DB_NAME`, `DTO_TEST_DB_USER`,
+and `DTO_TEST_DB_PASSWORD` override the test settings for an external server.
+The Compose credentials are for disposable local databases only. Django creates
+and destroys an isolated test database (or test user and tablespace for Oracle)
+on every run. CI runs the SQLite/Python matrix and a separate E2E matrix for
+the four server backends.
 
 To exercise a newer Django version without updating the lockfile:
 
