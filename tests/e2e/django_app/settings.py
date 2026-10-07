@@ -1,5 +1,7 @@
 import os
 
+import django
+
 SECRET_KEY = "tests-only-secret"
 INSTALLED_APPS = ["django.contrib.contenttypes", "dict_field"]
 MIGRATION_MODULES = {"dict_field": None}
@@ -35,6 +37,11 @@ else:
     if backend in ("mysql", "mariadb"):
         database["OPTIONS"] = {"charset": "utf8mb4"}
     if backend == "oracle":
+        client_lib_dir = os.environ.get("DTO_ORACLE_CLIENT_LIB_DIR")
+        if client_lib_dir and django.VERSION[:2] == (4, 2):
+            import cx_Oracle
+
+            cx_Oracle.init_oracle_client(lib_dir=client_lib_dir)
         database.update(
             NAME=f"{host}:{port}/{name}",
             HOST="",
