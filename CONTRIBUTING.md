@@ -71,6 +71,12 @@ The E2E test app is unmigrated: Django creates its tables from the current
 models when pytest sets up the test database. Changes to test models do not
 require generating migration files.
 
+E2E scenarios in `tests/e2e/dict_field/tests/` cover persistence, transactions,
+JSON queries, relationships, ModelForms, HTTP/admin requests, fixtures, historical
+models, and schema evolution. `schemas.py` contains importable order DTOs; the
+test app has no checked-in migrations. Backend-specific scenarios use Django
+feature flags, and key projections are compared with native `JSONField` behavior.
+
 ### E2E tests on SQL databases
 
 The library supports SQLite, PostgreSQL, MySQL, and MariaDB. `make test` runs

@@ -106,9 +106,15 @@ values, not DTOs. `DTOCharField` requires `max_length`, which limits the seriali
 JSON text. `DTOBinaryField` is not editable by default, as with Django's
 `BinaryField`.
 
+JSON key projections follow Django's backend behavior. On SQLite, use
+`KeyTextTransform` when strings such as `"0"` or `"null"` must remain strings.
+For optional form input, use `null=True, blank=True`, or submit `{}` for an empty
+dictionary; `blank=True` alone does not allow SQL NULL.
+
 Schema validation runs on assignment by default, including model construction.
 Set `validate_on_assignment=False` on a field to defer validation until conversion
 or saving. In-place changes to a DTO or dictionary are checked on save.
+SQL expressions bypass literal-value validation; DTO results are checked on load.
 Call `full_clean()` to run Django field validators; they receive the stored
 mapping, text, or bytes.
 
