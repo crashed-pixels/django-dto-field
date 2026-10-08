@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-matrix:
     runs-on: ubuntu-latest
@@ -16,22 +20,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        django-version: ["42", "52", "60", "61"]
-        database: [sqlite, postgresql, mysql, mariadb, oracle]
-        exclude:
+        include:
           - python-version: "3.10"
-            django-version: "60"
-          - python-version: "3.10"
-            django-version: "61"
+            django-version: "52"
+            database: sqlite
           - python-version: "3.11"
-            django-version: "60"
-          - python-version: "3.11"
-            django-version: "61"
+            django-version: "52"
+            database: sqlite
+          - python-version: "3.12"
+            django-version: "52"
+            database: sqlite
           - python-version: "3.13"
-            django-version: "42"
+            django-version: "52"
+            database: sqlite
           - python-version: "3.14"
-            django-version: "42"
+            django-version: "52"
+            database: sqlite
+          - python-version: "3.12"
+            django-version: "60"
+            database: sqlite
+          - python-version: "3.14"
+            django-version: "61"
+            database: sqlite
+          - python-version: "3.14"
+            django-version: "61"
+            database: postgresql
+          - python-version: "3.14"
+            django-version: "61"
+            database: mysql
+          - python-version: "3.14"
+            django-version: "61"
+            database: mariadb
 
     steps:
       - uses: actions/checkout@v7
@@ -53,21 +72,6 @@ jobs:
       - name: Install MySQL client libraries
         if: matrix.database == 'mysql' || matrix.database == 'mariadb'
         run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
-
-      - name: Install Oracle Instant Client for Django 4.2
-        if: matrix.database == 'oracle' && matrix.django-version == '42'
-        run: |
-          sudo apt-get update && sudo apt-get install -y libaio1t64 unzip
-          if [ ! -e /usr/lib/x86_64-linux-gnu/libaio.so.1 ]; then
-            sudo ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
-          fi
-          curl --fail --location --retry 3 \
-            --output "$RUNNER_TEMP/oracle-basiclite.zip" \
-            https://download.oracle.com/otn_software/linux/instantclient/2326300/instantclient-basiclite-linux.x64-23.26.3.0.0.zip
-          echo "88c2b59d473f0d34615556dbee51cb90cce61a9104b4c1c772d13c344fba19c9  $RUNNER_TEMP/oracle-basiclite.zip" | sha256sum --check
-          sudo mkdir -p /opt/oracle
-          sudo unzip -q "$RUNNER_TEMP/oracle-basiclite.zip" -d /opt/oracle
-          echo 'LD_LIBRARY_PATH=/opt/oracle/instantclient_23_26' >> "$GITHUB_ENV"
 
       - name: Start ${{ matrix.database }}
         if: matrix.database != 'sqlite'

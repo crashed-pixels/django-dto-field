@@ -43,17 +43,3 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
-
-  oracle:
-    image: gvenzl/oracle-free:23-slim-faststart
-    profiles: [oracle]
-    environment:
-      ORACLE_PASSWORD: dto_test_password
-    ports:
-      - "127.0.0.1:51521:1521"
-    healthcheck:
-      test: ["CMD", "healthcheck.sh"]
-      interval: 10s
-      timeout: 10s
-      retries: 30
-      start_period: 120s

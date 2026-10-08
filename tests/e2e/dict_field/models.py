@@ -31,6 +31,12 @@ class DataclassModel(models.Model):
     json = DTOJSONField(schema=UserDTO)
 
 
+class OptOutModel(models.Model):
+    text = DTOCharField(schema=UserDTO, max_length=1000, validate_on_assignment=False)
+    binary = DTOBinaryField(schema=UserDTO, validate_on_assignment=False)
+    json = DTOJSONField(schema=UserDTO, validate_on_assignment=False)
+
+
 class NullableModel(models.Model):
     text = DTOCharField(schema=UserDTO, max_length=1000, null=True, blank=True)
     binary = DTOBinaryField(schema=UserDTO, null=True, blank=True)

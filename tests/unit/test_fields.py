@@ -48,6 +48,22 @@ def test_deconstruction_round_trip(field_class, schema):
 
 
 @pytest.mark.parametrize("field_class", FIELDS)
+def test_assignment_validation_can_be_disabled_and_deconstructed(field_class):
+    field = field_class(schema=User, validate_on_assignment=False)
+    _, _, _, kwargs = field.deconstruct()
+    assert kwargs["validate_on_assignment"] is False
+    assert field_class(**kwargs).validate_on_assignment is False
+
+
+@pytest.mark.parametrize("field_class", FIELDS)
+def test_assignment_validation_is_enabled_by_default(field_class):
+    field = field_class(schema=User)
+    _, _, _, kwargs = field.deconstruct()
+    assert field.validate_on_assignment is True
+    assert "validate_on_assignment" not in kwargs
+
+
+@pytest.mark.parametrize("field_class", FIELDS)
 def test_null_and_default_schema(field_class):
     field = field_class(null=True, blank=True)
     assert field.schema is dict

@@ -8,7 +8,7 @@ Thank you for your interest in contributing! This document provides guidelines a
 
 **Core Tech Stack:**
 *   **Python:** 3.10 - 3.14
-*   **Framework:** Django >= 4.2.0
+*   **Framework:** Django >= 5.2
 *   **Serialization:** `msgspec` (for high-performance encoding/decoding)
 *   **Build & Package Management:** `uv`
 
@@ -73,7 +73,7 @@ require generating migration files.
 
 ### E2E tests on SQL databases
 
-Django supports SQLite, PostgreSQL, MySQL, MariaDB, and Oracle. `make test` runs
+The library supports SQLite, PostgreSQL, MySQL, and MariaDB. `make test` runs
 the entire suite on SQLite without Docker. To run the E2E suite on another backend,
 start its Docker Compose service, install the corresponding test driver, and set
 `DTO_TEST_DB`:
@@ -83,7 +83,6 @@ start its Docker Compose service, install the corresponding test driver, and set
 | `postgresql` | `postgresql` | `dev` (already installed) | 55432 |
 | `mysql` | `mysql` | `mysql` | 53306 |
 | `mariadb` | `mariadb` | `mysql` | 53307 |
-| `oracle` | `oracle` | `oracle` | 51521 |
 
 For example:
 
@@ -96,25 +95,30 @@ docker compose --profile postgresql down -v
 For MySQL and MariaDB, install the MySQL client development libraries first
 (for example, `brew install mysql-client pkg-config` on macOS or
 `sudo apt-get install default-libmysqlclient-dev pkg-config` on Ubuntu), then
-run `uv sync --group mysql`. For Oracle, run `uv sync --group oracle`; the
-`oracledb` thin driver needs no Oracle client installation. PostgreSQL uses the
+run `uv sync --group mysql`. PostgreSQL uses the
 driver from the default dev dependencies. Substitute the backend name in the
-Compose and `make e2e` commands above. Allow at least 4 GB of memory for
-Docker when running Oracle; its image may take longer to start on the first run.
+Compose and `make e2e` commands above.
 
 `DTO_TEST_DB_HOST`, `DTO_TEST_DB_PORT`, `DTO_TEST_DB_NAME`, `DTO_TEST_DB_USER`,
 and `DTO_TEST_DB_PASSWORD` override the test settings for an external server.
 The Compose credentials are for disposable local databases only. Django creates
-and destroys an isolated test database (or test user and tablespace for Oracle)
-on every run.
+and destroys an isolated test database on every run.
 
 ### Python, Django, and database matrix
 
-CI runs tox for each supported Python × Django × database combination. SQLite
-environments run the entire suite with 100% source coverage; server database
-environments run the E2E suite. The Django versions are 4.2, 5.2, 6.0, and 6.1.
-Python 3.10–3.11 run Django 4.2/5.2, Python 3.12 runs all four, and Python
-3.13–3.14 run Django 5.2/6.0/6.1.
+Every PR and push to `dev` or `main` runs 10 tox environments:
+
+| Python | Django | Database | Jobs |
+| :--- | :--- | :--- | ---: |
+| 3.10–3.14 | 5.2 | SQLite | 5 |
+| 3.12 | 6.0 | SQLite | 1 |
+| 3.14 | 6.1 | SQLite | 1 |
+| 3.14 | 6.1 | PostgreSQL, MySQL, MariaDB | 3 |
+
+SQLite environments run the entire suite with 100% source coverage; server
+database environments run the E2E suite. These representative combinations cover
+every supported Python and Django version without testing the full cross-product.
+Superseded workflow runs are cancelled automatically.
 
 Run the default SQLite environment locally with `uvx --with tox-uv tox`. To
 select a combination, use `py<version>-django<version>-<database>`:
@@ -130,27 +134,14 @@ Install other Python versions with `uv python install 3.10 3.11 3.12 3.13 3.14`.
 For MySQL/MariaDB, the same system client libraries are required for tox as
 for `make e2e`. On macOS, set
 `PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"` when invoking
-tox so it can compile `mysqlclient`. Django 5.2 and later use the `oracledb`
-thin client. Django 4.2 requires `cx_Oracle` and Oracle Instant Client; tox
-installs the driver, while CI installs the client. On macOS, download and mount
-the Oracle Instant Client Basic Light image for your architecture, then run
-(using an ARM64 image as an example):
-
-```bash
-DTO_ORACLE_CLIENT_LIB_DIR=/Volumes/instantclient-basiclite-macos.arm64-23.26.2.0.0 \
-  uvx --with tox-uv tox -e py310-django42-oracle
-```
+tox so it can compile `mysqlclient`.
 
 tox installs the appropriate Django and database driver into each environment
 independently of `uv.lock`.
 
 JSON `__in` lookups are expected to fail on MySQL/MariaDB with Django versions
 before 6.1: those Django backends compare JSON values against text in that
-lookup. On Oracle with Django versions before 6.1, JSON is stored as NCLOB;
-Oracle rejects NCLOB membership comparisons with `ORA-22848`. The tests check
-that backend error explicitly. Django 4.2 also fails to match JSON key strings
-on Oracle; the E2E tests still exercise scalar key lookups and DTO round trips.
-Whole-value exact JSON lookups remain covered.
+lookup. Whole-value exact JSON lookups remain covered.
 
 ## Submitting a Pull Request
 

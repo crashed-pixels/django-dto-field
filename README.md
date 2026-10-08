@@ -33,6 +33,9 @@
 - [X] Storing in JSONField
 - [X] Lookups for JSONField
 - [X] JSONField forms
+- [X] Supported MySQL DB
+- [X] Supported Postgres DB
+- [X] Supported MariaDB
 
 ## Quick start
 
@@ -78,13 +81,58 @@ Usage:
 
 ## Fields
 
-Supported Django fields
+Use `schema=Customer` to store the dataclass from the quick start. Each field
+accepts its Django base field's options, such as `null` and `blank`.
 
-| Import | Django base | Stored value |
+| Field | Django base | Stored value |
 | --- | --- | --- |
-| `django_dto_field.fields.json.DTOJSONField` | `JSONField` | Native JSON, encoded by Django |
-| `django_dto_field.fields.char.DTOCharField` | `CharField` | UTF-8 JSON text |
-| `django_dto_field.fields.binary.DTOBinaryField` | `BinaryField` | UTF-8 JSON bytes |
+| `DTOJSONField` | `JSONField` | Native JSON |
+| `DTOCharField` | `CharField` | JSON text |
+| `DTOBinaryField` | `BinaryField` | UTF-8 JSON bytes |
+
+The quick start uses `DTOJSONField`. To store the same DTO as text or bytes:
+
+```python
+>>> from django_dto_field.fields.char import DTOCharField
+>>> from django_dto_field.fields.binary import DTOBinaryField
+
+>>> class StoredOrder(models.Model):
+...     customer_text = DTOCharField(schema=Customer, max_length=500)
+...     customer_bytes = DTOBinaryField(schema=Customer)
+```
+
+`DTOJSONField` supports Django JSON key lookups; projected keys return native
+values, not DTOs. `DTOCharField` requires `max_length`, which limits the serialized
+JSON text. `DTOBinaryField` is not editable by default, as with Django's
+`BinaryField`.
+
+Schema validation runs on assignment by default, including model construction.
+Set `validate_on_assignment=False` on a field to defer validation until conversion
+or saving. In-place changes to a DTO or dictionary are checked on save.
+Call `full_clean()` to run Django field validators; they receive the stored
+mapping, text, or bytes.
+
+## Default `dict` DTO
+
+Omit `schema` on any DTO field to store dictionaries with JSON-compatible values.
+Loading returns a `dict`.
+
+```python
+>>> class Event(models.Model):
+...     details = DTOJSONField(default=dict)
+
+>>> event = Event.objects.create(details={"kind": "signup"})
+>>> event.refresh_from_db()
+>>> event.details
+{'kind': 'signup'}
+```
+
+## Supported versions and databases
+
+- Python 3.10–3.14.
+- Django 5.2 (Python 3.10–3.14) and 6.0–6.1
+  (Python 3.12–3.14).
+- SQLite, PostgreSQL, MySQL, and MariaDB.
 
 ## Help and contribute
 

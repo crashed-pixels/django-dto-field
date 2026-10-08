@@ -6,7 +6,7 @@ from django import forms
 from django.apps import apps
 from django.core import serializers
 from django.core.exceptions import ValidationError
-from django.db import DatabaseError, connection, models
+from django.db import connection, models
 from django.db.migrations.loader import MigrationLoader
 
 from dict_field.adapters import Message
@@ -16,8 +16,10 @@ from dict_field.models import (
     DataclassModel,
     DictModel,
     NullableModel,
+    OptOutModel,
     UserDTO,
 )
+from django_dto_field.forms.json import DTOFormField
 
 pytestmark = pytest.mark.django_db
 FIELD_NAMES = ("text", "binary", "json")
@@ -61,14 +63,6 @@ def test_orm_filters_handle_dto_values(model, payload, field_name):
     instance = model.objects.create(**dict.fromkeys(FIELD_NAMES, payload))
     assert model.objects.filter(**{field_name: payload}).get() == instance
     membership = model.objects.filter(**{f"{field_name}__in": [payload]})
-    if (
-        field_name == "json"
-        and connection.vendor == "oracle"
-        and django.VERSION[:2] < (6, 1)
-    ):
-        with pytest.raises(DatabaseError, match="ORA-22848"):
-            membership.exists()
-        return
     if (
         field_name == "json"
         and connection.vendor == "mysql"
@@ -161,13 +155,54 @@ def test_invalid_writes_raise_django_validation_error(field_name):
     instance = DataclassModel.objects.create(
         **dict.fromkeys(FIELD_NAMES, UserDTO(1, Address("London")))
     )
-    setattr(instance, field_name, UserDTO("bad", Address("London")))
     with pytest.raises(ValidationError):
-        instance.save()
+        setattr(instance, field_name, UserDTO("bad", Address("London")))
+    assert getattr(instance, field_name) == UserDTO(1, Address("London"))
     with pytest.raises(ValidationError):
         DataclassModel.objects.filter(pk=instance.pk).update(
             **{field_name: {"identifier": "bad"}}
         )
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_constructor_rejects_invalid_dto(field_name):
+    with pytest.raises(ValidationError):
+        DataclassModel(**{field_name: {"identifier": "bad"}})
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_assignment_preserves_valid_dictionary(field_name):
+    instance = DataclassModel()
+    payload = {"identifier": 1, "address": {"city": "London"}}
+    setattr(instance, field_name, payload)
+    assert getattr(instance, field_name) is payload
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_assignment_accepts_null_and_expressions(field_name):
+    instance = NullableModel()
+    setattr(instance, field_name, None)
+    assert getattr(instance, field_name) is None
+    expression = models.F(field_name)
+    setattr(instance, field_name, expression)
+    assert getattr(instance, field_name) is expression
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_deferred_field_loads_with_assignment_validation(field_name):
+    instance = DataclassModel.objects.create(
+        **dict.fromkeys(FIELD_NAMES, UserDTO(1, Address("London")))
+    )
+    deferred = DataclassModel.objects.defer(field_name).get(pk=instance.pk)
+    assert getattr(deferred, field_name) == UserDTO(1, Address("London"))
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_opt_out_defers_validation_until_save(field_name):
+    instance = OptOutModel(**{field_name: UserDTO("bad", Address("London"))})
+    assert getattr(instance, field_name) == UserDTO("bad", Address("London"))
+    with pytest.raises(ValidationError):
+        instance.save()
 
 
 def test_json_key_lookups_return_native_values():
@@ -183,16 +218,13 @@ def test_json_key_lookups_return_native_values():
     assert DictModel.objects.filter(json__number=1).get() == instance
     assert DictModel.objects.filter(json__nested__ok=True).get() == instance
     string_lookup = DictModel.objects.filter(json__name="Ada")
-    if connection.vendor == "oracle" and django.VERSION[:2] == (4, 2):
-        assert not string_lookup.exists()
-    else:
-        assert string_lookup.get() == instance
-        assert (
-            DictModel.objects.filter(
-                json__number=1, json__name="Ada", json__nested__ok=True
-            ).get()
-            == instance
-        )
+    assert string_lookup.get() == instance
+    assert (
+        DictModel.objects.filter(
+            json__number=1, json__name="Ada", json__nested__ok=True
+        ).get()
+        == instance
+    )
     assert DictModel.objects.filter(json__number__in=[1, 2]).exists()
     assert DictModel.objects.filter(json__has_key="name").exists()
     for key, expected in instance.json.items():
@@ -203,10 +235,7 @@ def test_json_key_lookups_return_native_values():
         **dict.fromkeys(FIELD_NAMES, UserDTO(1, Address("London")))
     )
     city_lookup = DataclassModel.objects.filter(json__address__city="London")
-    if connection.vendor == "oracle" and django.VERSION[:2] == (4, 2):
-        assert not city_lookup.exists()
-    else:
-        assert city_lookup.get() == user
+    assert city_lookup.get() == user
     assert DataclassModel.objects.values_list("json__address", flat=True).get() == {
         "city": "London"
     }
@@ -278,6 +307,13 @@ def test_invalid_model_form_reports_errors():
     form = form_class(data={"text": "not json", "json": '{"identifier":"bad"}'})
     assert not form.is_valid()
     assert set(form.errors) == {"text", "json"}
+
+
+def test_nullable_form_accepts_null():
+    field = DTOFormField(
+        converter=NullableModel._meta.get_field("json").converter, required=False
+    )
+    assert field.clean(None) is None
 
 
 def test_json_null_expression_retains_native_json_semantics():
