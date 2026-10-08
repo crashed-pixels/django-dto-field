@@ -1,11 +1,12 @@
 """Integrate DTO conversion with Django field lifecycle hooks."""
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Generic
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
 
 from django import forms
 from django.db import models
 from django.db.backends.base.base import BaseDatabaseWrapper
+from django.db.models.query_utils import DeferredAttribute
 
 from django_dto_field.adapters.base import DTO, DTOAdapter
 from django_dto_field.conversion.converter import DTOConverter
@@ -19,6 +20,20 @@ else:
     Field = models.Field
 
 
+class DTODeferredAttribute(DeferredAttribute):
+    """Validate assigned DTO values while retaining Django's deferred loading."""
+
+    def __set__(self, instance: models.Model, value: Any) -> None:  # noqa: WPS110
+        field = cast("DTOFieldMixin[Any]", self.field)
+        if (
+            field.validate_on_assignment
+            and value is not None
+            and not hasattr(value, "resolve_expression")
+        ):
+            field.to_python(value)
+        instance.__dict__[field.attname] = value
+
+
 class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     """Core logic for handling DTOs in Django fields.
 
@@ -27,6 +42,8 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     :param schema: Importable schema class; defaults to :class:`dict`.
     :param adapter: Importable class implementing
         :class:`~django_dto_field.adapters.base.DTOAdapter`.
+    :param validate_on_assignment: Validate assigned DTO values; defaults to
+        ``True``. Django field validators still require ``full_clean()``.
     :param args: Positional arguments forwarded to the native Django field.
     :param kwargs: Keyword arguments forwarded to the native Django field.
 
@@ -93,8 +110,8 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     #. Validates the dictionary through the adapter before storage.
 
     The converter coordinates conversion and validation; it does not write
-    to the database. Assignment alone does not validate. Call ``full_clean()``
-    to run Django field validators as well as schema validation.
+    to the database. Assignment validates the schema by default. Call
+    ``full_clean()`` to run Django field validators as well as schema validation.
 
     Storage
     -------
@@ -115,6 +132,7 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
 
     empty_strings_allowed = False
     empty_values = models.Field.empty_values
+    descriptor_class = DTODeferredAttribute
     storage: ClassVar[JSONStorage] = JSONStorage()
 
     def __init__(
@@ -122,10 +140,12 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
         *args: Any,
         schema: type[Any] | None = None,
         adapter: type[DTOAdapter[DTO]] | None = None,
+        validate_on_assignment: bool = True,
         **kwargs: Any,
     ) -> None:
         self.schema = dict if schema is None else schema
         self.adapter = adapter
+        self.validate_on_assignment = validate_on_assignment
         with field_errors():
             self.converter: DTOConverter[DTO] = DTOConverter(
                 self.schema, adapter=adapter
@@ -138,6 +158,8 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
             kwargs["schema"] = self.schema
         if self.adapter is not None:
             kwargs["adapter"] = self.adapter
+        if not self.validate_on_assignment:
+            kwargs["validate_on_assignment"] = False
         return name, path, args, kwargs
 
     def to_python(self, value: Any) -> DTO | None:  # noqa: WPS110

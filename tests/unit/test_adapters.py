@@ -65,6 +65,10 @@ def test_custom_adapter_survives_migration_serialization(field_class):
     assert restored.to_python({"identifier": 1}) == Message(1)
     message = Message(2)
     assert restored.to_python(message) is message
+
+
+@pytest.mark.parametrize("field_class", [DTOCharField, DTOBinaryField, DTOJSONField])
+def test_default_adapter_is_omitted_from_migrations(field_class):
     assert "adapter" not in field_class().deconstruct()[3]
 
 

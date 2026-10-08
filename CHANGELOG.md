@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `validate_on_assignment=False` to disable assignment validation; migrations preserve the option.
+- Realistic Django E2E scenarios covering partial saves, deferred loading, transactions, bulk imports/upserts, JSON queries, relationships, forms, HTTP/admin requests, fixtures, historical models, and schema evolution.
+- Property-based tests for rich DTOs, repeated nested edits, and adapters returning dictionaries.
+- PostgreSQL, MySQL, and MariaDB test environments with Docker Compose, tox, and `make e2e`.
+
+### Changed
+
+- **Breaking:** all DTO fields validate schema values on assignment and model construction by default. Failed assignments preserve the previous value; Django field validators still require `full_clean()`.
+- **Breaking:** raise the minimum Django version from 4.2 to 5.2.
+- Run 10 representative CI test environments across Python 3.10–3.14, Django 5.2/6.0/6.1, and four database backends; cancel superseded runs.
+- Create E2E test tables from current models instead of checked-in test-app migrations.
+- Expand README examples and contribution guidance with field restrictions, default dictionary behavior, supported versions, and database test setup.
+
+### Fixed
+
+- Report ModelForm schema validation errors on the affected field instead of as form-wide errors.
+
 ## [0.1.0] - 2026-10-01
 
 ### Added

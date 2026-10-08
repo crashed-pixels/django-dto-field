@@ -9,13 +9,48 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  test-matrix:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - python-version: "3.10"
+            django-version: "52"
+            database: sqlite
+          - python-version: "3.11"
+            django-version: "52"
+            database: sqlite
+          - python-version: "3.12"
+            django-version: "52"
+            database: sqlite
+          - python-version: "3.13"
+            django-version: "52"
+            database: sqlite
+          - python-version: "3.14"
+            django-version: "52"
+            database: sqlite
+          - python-version: "3.12"
+            django-version: "60"
+            database: sqlite
+          - python-version: "3.14"
+            django-version: "61"
+            database: sqlite
+          - python-version: "3.14"
+            django-version: "61"
+            database: postgresql
+          - python-version: "3.14"
+            django-version: "61"
+            database: mysql
+          - python-version: "3.14"
+            django-version: "61"
+            database: mariadb
 
     steps:
       - uses: actions/checkout@v7
@@ -34,8 +69,19 @@ jobs:
           cache-dependency-glob: "uv.lock"
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: uv sync --all-extras --dev
+      - name: Install MySQL client libraries
+        if: matrix.database == 'mysql' || matrix.database == 'mariadb'
+        run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
 
-      - name: Run tests
-        run: make test
+      - name: Start ${{ matrix.database }}
+        if: matrix.database != 'sqlite'
+        run: docker compose --profile "${{ matrix.database }}" up -d --wait "${{ matrix.database }}"
+
+      - name: Run Python ${{ matrix.python-version }} / Django ${{ matrix.django-version }} / ${{ matrix.database }}
+        run: |
+          python_version="${{ matrix.python-version }}"
+          uvx --with tox-uv tox -e "py${python_version/./}-django${{ matrix.django-version }}-${{ matrix.database }}"
+
+      - name: Stop database
+        if: always() && matrix.database != 'sqlite'
+        run: docker compose --profile "${{ matrix.database }}" down -v

@@ -24,8 +24,10 @@ class MsgspecAdapter(Generic[DTO]):
     """
 
     def __init__(self, schema: type[DTO]) -> None:
-        supported = schema is dict or is_dataclass(schema)
-        if not isinstance(schema, type) or not supported:
+        supported_schema = isinstance(schema, type) and (
+            schema is dict or is_dataclass(schema)
+        )
+        if not supported_schema:
             raise SchemaError("Schema must be dict or a dataclass class.")
         self.schema = schema
 
