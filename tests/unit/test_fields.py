@@ -48,6 +48,22 @@ def test_deconstruction_round_trip(field_class, schema):
 
 
 @pytest.mark.parametrize("field_class", FIELDS)
+def test_assignment_validation_can_be_disabled_and_deconstructed(field_class):
+    field = field_class(schema=User, validate_on_assignment=False)
+    _, _, _, kwargs = field.deconstruct()
+    assert kwargs["validate_on_assignment"] is False
+    assert field_class(**kwargs).validate_on_assignment is False
+
+
+@pytest.mark.parametrize("field_class", FIELDS)
+def test_assignment_validation_is_enabled_by_default(field_class):
+    field = field_class(schema=User)
+    _, _, _, kwargs = field.deconstruct()
+    assert field.validate_on_assignment is True
+    assert "validate_on_assignment" not in kwargs
+
+
+@pytest.mark.parametrize("field_class", FIELDS)
 def test_null_and_default_schema(field_class):
     field = field_class(null=True, blank=True)
     assert field.schema is dict
@@ -58,27 +74,37 @@ def test_null_and_default_schema(field_class):
 
 
 @pytest.mark.parametrize("field_class", FIELDS)
-def test_conversion_is_idempotent_and_validates_members(field_class):
+def test_valid_dto_conversion_and_clean(field_class):
     field = field_class(schema=User, max_length=200)
     user = User(1)
     assert field.to_python(user) is user
     assert field.to_python({"identifier": 1}) == user
     assert field.clean(user, None) is user
-    for invalid in [User("wrong"), {}, object(), [], User]:
-        with pytest.raises(DTOFieldError) as error:
-            field.to_python(invalid)
-        assert isinstance(error.value, ValidationError)
-        assert isinstance(error.value, DTOError)
-        assert isinstance(error.value.__cause__, DTOError)
 
 
 @pytest.mark.parametrize("field_class", FIELDS)
-def test_django_null_and_blank_validation(field_class):
+@pytest.mark.parametrize("invalid", [User("wrong"), {}, object(), [], User])
+def test_conversion_rejects_invalid_dto_members_and_shapes(field_class, invalid):
+    field = field_class(schema=User)
+    with pytest.raises(DTOFieldError) as error:
+        field.to_python(invalid)
+    assert isinstance(error.value, ValidationError)
+    assert isinstance(error.value, DTOError)
+    assert isinstance(error.value.__cause__, DTOError)
+
+
+@pytest.mark.parametrize("field_class", FIELDS)
+@pytest.mark.parametrize("value, code", [(None, "null"), ({}, "blank")])
+def test_django_null_and_blank_validation(field_class, value, code):
     field = field_class(max_length=200)
-    with pytest.raises(ValidationError):
-        field.clean(None, None)
-    with pytest.raises(ValidationError):
-        field.clean({}, None)
+    with pytest.raises(ValidationError) as error:
+        field.clean(value, None)
+    assert error.value.code == code
+
+
+def test_char_max_length_accepts_exact_serialized_length():
+    field = DTOCharField(max_length=7)
+    assert field.clean({"a": 1}, None) == {"a": 1}
 
 
 def test_char_max_length_applies_to_serialized_text():
@@ -88,10 +114,15 @@ def test_char_max_length_applies_to_serialized_text():
 
 
 @pytest.mark.parametrize("field_class", [DTOCharField, DTOBinaryField])
-def test_encoded_values_and_invalid_json(field_class):
+@pytest.mark.parametrize("encoded", [b'{"identifier":1}', '{"identifier":1}'])
+def test_encoded_values_are_decoded(field_class, encoded):
     field = field_class(schema=User)
-    assert field.to_python(b'{"identifier":1}') == User(1)
-    assert field.to_python('{"identifier":1}') == User(1)
+    assert field.to_python(encoded) == User(1)
+
+
+@pytest.mark.parametrize("field_class", [DTOCharField, DTOBinaryField])
+def test_malformed_json_is_rejected(field_class):
+    field = field_class(schema=User)
     with pytest.raises(ValidationError):
         field.to_python("not json")
 

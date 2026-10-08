@@ -1,10 +1,13 @@
 import json
 
+import django
 import pytest
 from django import forms
+from django.apps import apps
 from django.core import serializers
 from django.core.exceptions import ValidationError
 from django.db import connection, models
+from django.db.migrations.loader import MigrationLoader
 
 from dict_field.adapters import Message
 from dict_field.models import (
@@ -13,22 +16,31 @@ from dict_field.models import (
     DataclassModel,
     DictModel,
     NullableModel,
+    OptOutModel,
     UserDTO,
 )
+from django_dto_field.forms.json import DTOFormField
 
 pytestmark = pytest.mark.django_db
 FIELD_NAMES = ("text", "binary", "json")
-
-
-@pytest.mark.parametrize(
-    "model, payload",
-    [
-        (DictModel, {"nested": [1, None, True, "Привет"]}),
-        (DataclassModel, UserDTO(1, Address("London"))),
-        (CustomModel, Message(1)),
-    ],
+DTO_CASES = (
+    (DictModel, {"nested": [1, None, True, "Привет"]}),
+    (DataclassModel, UserDTO(1, Address("London"))),
+    (CustomModel, Message(1)),
 )
-def test_crud_and_full_clean(model, payload):
+
+
+def test_test_app_tables_follow_models_without_migrations():
+    loader = MigrationLoader(connection)
+    assert "dict_field" in loader.unmigrated_apps
+    model_tables = {
+        model._meta.db_table for model in apps.get_app_config("dict_field").get_models()
+    }
+    assert model_tables <= set(connection.introspection.table_names())
+
+
+@pytest.mark.parametrize("model, payload", DTO_CASES)
+def test_create_read_and_full_clean(model, payload):
     instance = model(**dict.fromkeys(FIELD_NAMES, payload))
     instance.full_clean()
     instance.save()
@@ -43,21 +55,43 @@ def test_crud_and_full_clean(model, payload):
             getattr(model.objects.defer(field_name).get(pk=instance.pk), field_name)
             == payload
         )
-        assert model.objects.filter(**{field_name: payload}).exists()
-        assert model.objects.filter(**{f"{field_name}__in": [payload]}).exists()
+
+
+@pytest.mark.parametrize("model, payload", DTO_CASES)
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_orm_filters_handle_dto_values(model, payload, field_name):
+    instance = model.objects.create(**dict.fromkeys(FIELD_NAMES, payload))
+    assert model.objects.filter(**{field_name: payload}).get() == instance
+    membership = model.objects.filter(**{f"{field_name}__in": [payload]})
+    if (
+        field_name == "json"
+        and connection.vendor == "mysql"
+        and django.VERSION[:2] < (6, 1)
+    ):
+        pytest.xfail("Django <6.1 MySQL JSONField __in compares JSON against text")
+    assert membership.get() == instance
 
 
 def test_native_database_representations():
     instance = DictModel.objects.create(**dict.fromkeys(FIELD_NAMES, {"a": 1}))
+    columns = ", ".join(connection.ops.quote_name(name) for name in FIELD_NAMES)
+    table = connection.ops.quote_name(DictModel._meta.db_table)
+    primary_key = connection.ops.quote_name("id")
     with connection.cursor() as cursor:
         cursor.execute(
-            'SELECT "text", "binary", "json" FROM "dict_field_dictmodel" WHERE id = %s',
+            f"SELECT {columns} FROM {table} WHERE {primary_key} = %s",
             [instance.pk],
         )
         text, binary, json_value = cursor.fetchone()
+    if hasattr(binary, "read"):
+        binary = binary.read()
+    if hasattr(json_value, "read"):
+        json_value = json_value.read()
     assert text == '{"a":1}'
     assert bytes(binary) == b'{"a":1}'
-    assert json.loads(json_value) == {"a": 1}
+    assert (json.loads(json_value) if isinstance(json_value, str) else json_value) == {
+        "a": 1
+    }
 
 
 @pytest.mark.parametrize(
@@ -70,7 +104,7 @@ def test_native_database_representations():
 )
 def test_bulk_and_expression_writes(model, payload, changed):
     instances = model.objects.bulk_create(
-        [model(**dict.fromkeys(FIELD_NAMES, payload)) for _ in range(2)]
+        [model(pk=pk, **dict.fromkeys(FIELD_NAMES, payload)) for pk in (1, 2)]
     )
     for instance in instances:
         for field_name in FIELD_NAMES:
@@ -121,13 +155,54 @@ def test_invalid_writes_raise_django_validation_error(field_name):
     instance = DataclassModel.objects.create(
         **dict.fromkeys(FIELD_NAMES, UserDTO(1, Address("London")))
     )
-    setattr(instance, field_name, UserDTO("bad", Address("London")))
     with pytest.raises(ValidationError):
-        instance.save()
+        setattr(instance, field_name, UserDTO("bad", Address("London")))
+    assert getattr(instance, field_name) == UserDTO(1, Address("London"))
     with pytest.raises(ValidationError):
         DataclassModel.objects.filter(pk=instance.pk).update(
             **{field_name: {"identifier": "bad"}}
         )
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_constructor_rejects_invalid_dto(field_name):
+    with pytest.raises(ValidationError):
+        DataclassModel(**{field_name: {"identifier": "bad"}})
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_assignment_preserves_valid_dictionary(field_name):
+    instance = DataclassModel()
+    payload = {"identifier": 1, "address": {"city": "London"}}
+    setattr(instance, field_name, payload)
+    assert getattr(instance, field_name) is payload
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_assignment_accepts_null_and_expressions(field_name):
+    instance = NullableModel()
+    setattr(instance, field_name, None)
+    assert getattr(instance, field_name) is None
+    expression = models.F(field_name)
+    setattr(instance, field_name, expression)
+    assert getattr(instance, field_name) is expression
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_deferred_field_loads_with_assignment_validation(field_name):
+    instance = DataclassModel.objects.create(
+        **dict.fromkeys(FIELD_NAMES, UserDTO(1, Address("London")))
+    )
+    deferred = DataclassModel.objects.defer(field_name).get(pk=instance.pk)
+    assert getattr(deferred, field_name) == UserDTO(1, Address("London"))
+
+
+@pytest.mark.parametrize("field_name", FIELD_NAMES)
+def test_opt_out_defers_validation_until_save(field_name):
+    instance = OptOutModel(**{field_name: UserDTO("bad", Address("London"))})
+    assert getattr(instance, field_name) == UserDTO("bad", Address("London"))
+    with pytest.raises(ValidationError):
+        instance.save()
 
 
 def test_json_key_lookups_return_native_values():
@@ -140,6 +215,10 @@ def test_json_key_lookups_return_native_values():
             "null": None,
         }
     )
+    assert DictModel.objects.filter(json__number=1).get() == instance
+    assert DictModel.objects.filter(json__nested__ok=True).get() == instance
+    string_lookup = DictModel.objects.filter(json__name="Ada")
+    assert string_lookup.get() == instance
     assert (
         DictModel.objects.filter(
             json__number=1, json__name="Ada", json__nested__ok=True
@@ -155,10 +234,17 @@ def test_json_key_lookups_return_native_values():
     user = DataclassModel.objects.create(
         **dict.fromkeys(FIELD_NAMES, UserDTO(1, Address("London")))
     )
-    assert DataclassModel.objects.filter(json__address__city="London").get() == user
+    city_lookup = DataclassModel.objects.filter(json__address__city="London")
+    assert city_lookup.get() == user
     assert DataclassModel.objects.values_list("json__address", flat=True).get() == {
         "city": "London"
     }
+
+
+def test_json_numeric_looking_string_survives_database_round_trip():
+    instance = DictModel.objects.create(json={"nested": "0"})
+    instance.refresh_from_db()
+    assert instance.json == {"nested": "0"}
 
 
 @pytest.mark.parametrize(
@@ -221,6 +307,13 @@ def test_invalid_model_form_reports_errors():
     form = form_class(data={"text": "not json", "json": '{"identifier":"bad"}'})
     assert not form.is_valid()
     assert set(form.errors) == {"text", "json"}
+
+
+def test_nullable_form_accepts_null():
+    field = DTOFormField(
+        converter=NullableModel._meta.get_field("json").converter, required=False
+    )
+    assert field.clean(None) is None
 
 
 def test_json_null_expression_retains_native_json_semantics():

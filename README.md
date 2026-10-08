@@ -1,211 +1,144 @@
-# django-dto-field
+<p align="center">
+    <br/>
+    <img src="docs/media/logo.png" width="700" alt="django-dto-field logo"/>
+    <br/>
+    <br/>
+    <a href="https://pypi.org/project/django-dto-field/" target="_blank">
+        <img src="https://github.com/skv0zsneg/django-dto-field/actions/workflows/test.yml/badge.svg" alt="PyPi"/>
+    </a>
+    <a href="https://github.com/skv0zsneg/django-dto-field/actions/workflows/typing_and_lint.yml" target="_blank">
+        <img src="https://github.com/skv0zsneg/django-dto-field/actions/workflows/typing_and_lint.yml/badge.svg" alt="Typing and Linters"/>
+    <a href="https://pypi.org/project/django-dto-field/" target="_blank">
+        <img src="https://img.shields.io/pypi/v/django-dto-field.svg" alt="PyPi"/>
+    </a>
+    </a>
+    <br/>
+    <a href="https://github.com/wemake-services/wemake-python-styleguide" target="_blank">
+        <img src="https://img.shields.io/badge/style-wemake-000000.svg" alt="wemake style"/>
+    </a>
+    <a href="https://github.com/crashed-pixels" target="_blank">
+        <img src="https://img.shields.io/badge/crashed-pixels-green?style=flat" alt="wemake style"/>
+    </a>
+</p>
 
-[![PyPI](https://img.shields.io/pypi/v/django-dto-field.svg)](https://pypi.org/project/django-dto-field/)
-[![Tests](https://github.com/skv0zsneg/django-dto-field/actions/workflows/test.yml/badge.svg)](https://github.com/skv0zsneg/django-dto-field/actions/workflows/test.yml)
-[![typing & lint](https://github.com/skv0zsneg/django-dto-field/actions/workflows/typing_and_lint.yml/badge.svg?event=push)](https://github.com/skv0zsneg/django-dto-field/actions/workflows/typing_and_lint.yml)
+## Features
 
-[![wemake-python-styleguide](https://img.shields.io/badge/style-wemake-000000.svg)](https://github.com/wemake-services/wemake-python-styleguide)
+- [X] Python `dict` support by default
+- [X] Python [dataclasses](https://docs.python.org/3/library/dataclasses.html) support
+- [ ] [Pydantic](https://docs.pydantic.dev/) models
+- [ ] [Marshmallow](https://marshmallow.readthedocs.io/) schemas
+- [ ] [attrs](https://www.attrs.org/) defines
+- [X] Storing in BinaryField
+- [X] Storing in CharField
+- [X] Storing in JSONField
+- [X] Lookups for JSONField
+- [X] JSONField forms
+- [X] Supported MySQL DB
+- [X] Supported Postgres DB
+- [X] Supported MariaDB
 
-**Your DTO's, at home in Django models.**
+## Quick start
 
-Save a your DTO object (`dict`, `dataclass`, etc) and get it back—including nested objects. Let the field
-handle conversion and schema validation while you work with familiar objects and Django framework.
-
-## Why use it?
-
-Django's `JSONField` stores structured data, but does not reconstruct your typed
-objects or validate their annotated members. Applications often repeat that
-conversion in model methods, services, and forms.
-
-`django-dto-field` puts that work at the field boundary. Write a DTO, read a DTO,
-and keep schema validation consistent across model saves, queryset updates, and
-bulk writes. Choose native JSON, text, or binary storage to suit your database.
-
-- DTO's work out of the box, with nested objects and strict member validation.
-- Dictionaries DTO's work without a schema when you need flexible structured data.
-- JSON fields retain Django's key lookups and projections.
-- ModelForms display JSON, and Django JSON fixtures round-trip DTO values.
-- Explicit adapters provide an extension point for other DTO libraries.
-
-## DTO support
-
-- [x] Python [`dataclasses`](https://docs.python.org/3/library/dataclasses.html) —
-  nested DTOs, annotated-member validation, and reconstruction on reads.
-- [x] Python `dict` — flexible JSON-compatible data without a custom schema.
-- [ ] [Pydantic](https://docs.pydantic.dev/) — planned model adapter.
-- [ ] [Marshmallow](https://marshmallow.readthedocs.io/) — planned schema adapter.
-- [ ] [attrs](https://www.attrs.org/) — planned object adapter.
-- [ ] [Adaptix](https://adaptix.readthedocs.io/) — planned conversion adapter.
-
-The adapter architecture is already in place for these integrations. Want to help
-bring your favorite library to Django fields? See [Extend DTO support](#extend-dto-support)
-and our [contributing guide](CONTRIBUTING.md).
-
-## Install
-
-Requires **Python 3.10+** and **Django 4.2+**.
+Installing:
 
 ```bash
 pip install django-dto-field
 ```
 
-No additional entry in `INSTALLED_APPS` is needed. Add the fields to your models,
-then create and apply migrations as usual.
-
-## Quick start
-
-### `dataclass`
-
-Let's give an order a typed customer and address. Put these classes in your app's
-`models.py` (or another importable module) so Django can use them in migrations:
+Usage:
 
 ```python
-from dataclasses import dataclass
-from django.db import models
-from django_dto_field.fields.json import DTOJSONField
+>>> from dataclasses import dataclass
+>>> from django.db import models
+>>> from django_dto_field.fields.json import DTOJSONField
 
-@dataclass
-class Address:
-    city: str
 
-@dataclass
-class Customer:
-    name: str
-    address: Address
+>>> @dataclass  # Define DTO
+... class Address:
+...    city: str
 
-class Order(models.Model):
-    customer = DTOJSONField(schema=Customer)
+>>> @dataclass
+... class Customer:  # Use nested DTO
+...    name: str
+...    address: Address
+
+
+>>> class Order(models.Model):  # Add field to model
+...    customer = DTOJSONField(schema=Customer)
+
+>>> order = Order.objects.create(  # Save it
+...    customer=Customer("Alice", Address("London"))
+... )
+
+
+>>> order.refresh_from_db()  # Get it
+>>> assert order.customer == Customer("Alice", Address("London"))
+>>> assert isinstance(order.customer.address, Address)
+
+>>> Order.objects.filter(customer__address__city="London")  # Use lookups
+>>> Order.objects.values_list("customer__address", flat=True)  # Return dictionary
 ```
 
-After creating and applying migrations, try this in the Django shell:
+## Fields
 
-```python
-from myapp.models import Address, Customer, Order
+Use `schema=Customer` to store the dataclass from the quick start. Each field
+accepts its Django base field's options, such as `null` and `blank`.
 
-order = Order.objects.create(customer=Customer("Alice", Address("London")))
-order.refresh_from_db()
-assert order.customer == Customer("Alice", Address("London"))
-assert isinstance(order.customer.address, Address)
-
-Order.objects.filter(customer__address__city="London")
-Order.objects.values_list("customer__address", flat=True)  # Returns dictionaries.
-```
-
-You can pass a dictionary too. `full_clean()` turns it into your dataclass on the
-model instance:
-
-```python
-order = Order(customer={"name": "Bob", "address": {"city": "Paris"}})
-order.full_clean()
-assert isinstance(order.customer, Customer)
-order.save()
-```
-
-Invalid annotated members raise Django `ValidationError` during validation or
-literal writes—even when Python permits constructing the dataclass:
-
-```python
-from django.core.exceptions import ValidationError
-
-try:
-    Order.objects.create(customer=Customer("Alice", Address(city=123)))
-except ValidationError as error:
-    print(error)
-```
-
-### `dict`
-
-For data that doesn't need a typed schema, leave out `schema`:
-
-```python
-from django.db import models
-from django_dto_field.fields.json import DTOJSONField
-
-class Document(models.Model):
-    metadata = DTOJSONField(default=dict, blank=True)
-```
-
-After migrating, use the field in the Django shell or application code:
-
-```python
-from myapp.models import Document
-
-document = Document.objects.create(metadata={"author": "Ada", "tags": ["math"]})
-document.refresh_from_db()
-assert document.metadata == {"author": "Ada", "tags": ["math"]}
-
-Document.objects.filter(metadata__author="Ada")
-Document.objects.values_list("metadata__tags", flat=True)  # Returns lists.
-```
-
-Use callable defaults such as `dict` so each instance gets its own value.
-
-### Choose your storage field
-
-The schema and adapter options work with all three fields:
-
-| Import | Django base | Stored value |
+| Field | Django base | Stored value |
 | --- | --- | --- |
-| `django_dto_field.fields.json.DTOJSONField` | `JSONField` | Native JSON, encoded by Django |
-| `django_dto_field.fields.char.DTOCharField` | `CharField` | UTF-8 JSON text |
-| `django_dto_field.fields.binary.DTOBinaryField` | `BinaryField` | UTF-8 JSON bytes |
+| `DTOJSONField` | `JSONField` | Native JSON |
+| `DTOCharField` | `CharField` | JSON text |
+| `DTOBinaryField` | `BinaryField` | UTF-8 JSON bytes |
+
+The quick start uses `DTOJSONField`. To store the same DTO as text or bytes:
 
 ```python
-from django_dto_field.fields.binary import DTOBinaryField
-from django_dto_field.fields.char import DTOCharField
+>>> from django_dto_field.fields.char import DTOCharField
+>>> from django_dto_field.fields.binary import DTOBinaryField
 
-# Inside a model definition:
-summary = DTOCharField(max_length=2000, default=dict, blank=True)
-archive = DTOBinaryField(schema=Customer, null=True, blank=True)
+>>> class StoredOrder(models.Model):
+...     customer_text = DTOCharField(schema=Customer, max_length=500)
+...     customer_bytes = DTOBinaryField(schema=Customer)
 ```
 
-`DTOCharField.max_length` measures the serialized text. `DTOBinaryField` retains
-Django's `editable=False` default. Package initializers do not re-export classes;
-use the module paths above.
+`DTOJSONField` supports Django JSON key lookups; projected keys return native
+values, not DTOs. `DTOCharField` requires `max_length`, which limits the serialized
+JSON text. `DTOBinaryField` is not editable by default, as with Django's
+`BinaryField`.
 
-## A few things worth knowing
+JSON key projections follow Django's backend behavior. On SQLite, use
+`KeyTextTransform` when strings such as `"0"` or `"null"` must remain strings.
+For optional form input, use `null=True, blank=True`, or submit `{}` for an empty
+dictionary; `blank=True` alone does not allow SQL NULL.
 
-- **Validation timing:** attribute assignment does not validate. Conversion and
-  literal writes validate the schema, including `update()` and bulk writes.
-  Call `full_clean()` for Django field validators; `save()` does not run them all.
-- **In-memory values:** saving dictionary input prepares it for storage without
-  replacing the attribute. Use `full_clean()` or `refresh_from_db()` to obtain a DTO.
-- **Field validators:** receive the storage value—text, bytes, or a JSON-compatible
-  mapping. `null` and `blank` retain Django semantics.
-- **JSON lookups:** partial/scalar operands bypass whole-DTO validation. Key
-  projections return native JSON values, not partial DTO's.
-- **Nulls:** `None` stores SQL NULL when permitted. `DTOJSONField` also supports
-  explicit JSON null through Django's `Value(None, output_field=...)`.
-- **SQL expressions:** arbitrary database expressions are not schema-validated
-  before execution; complete values are validated when read back.
-- **Schema changes:** changing a schema does not rewrite existing data. Plan a
-  data migration when stored values no longer satisfy the new schema.
+Schema validation runs on assignment by default, including model construction.
+Set `validate_on_assignment=False` on a field to defer validation until conversion
+or saving. In-place changes to a DTO or dictionary are checked on save.
+SQL expressions bypass literal-value validation; DTO results are checked on load.
+Call `full_clean()` to run Django field validators; they receive the stored
+mapping, text, or bytes.
 
-## Extend DTO support
+## Default `dict` DTO
 
-If you'd like to build your custom integration supply an importable adapter class:
+Omit `schema` on any DTO field to store dictionaries with JSON-compatible values.
+Loading returns a `dict`.
 
 ```python
-from django_dto_field.fields.json import DTOJSONField
-from myapp.dto import MyAdapter, MySchema
+>>> class Event(models.Model):
+...     details = DTOJSONField(default=dict)
 
-payload = DTOJSONField(schema=MySchema, adapter=MyAdapter)
+>>> event = Event.objects.create(details={"kind": "signup"})
+>>> event.refresh_from_db()
+>>> event.details
+{'kind': 'signup'}
 ```
 
-Implement the `DTOAdapter` protocol from `django_dto_field.adapters.base`:
+## Supported versions and databases
 
-- `__init__(schema)`: configure and validate the schema.
-- `is_instance(instance)`: recognize a DTO using `TypeGuard`.
-- `to_data(instance)`: produce a JSON-compatible dictionary.
-- `from_data(payload)`: validate a complete dictionary and reconstruct a DTO.
-
-The schema and result classes may differ. Adapters are instantiated per converter
-and preserved in migrations, with no global registry. Translate integration
-errors into library exceptions from `django_dto_field.exceptions.base`.
-At the Django boundary, these become `DTOFieldError` from
-`django_dto_field.exceptions.django`, which also inherits Django `ValidationError`.
-
-See the [test adapters](tests/e2e/dict_field/adapters.py) for small working examples.
+- Python 3.10–3.14.
+- Django 5.2 (Python 3.10–3.14) and 6.0–6.1
+  (Python 3.12–3.14).
+- SQLite, PostgreSQL, MySQL, and MariaDB.
 
 ## Help and contribute
 

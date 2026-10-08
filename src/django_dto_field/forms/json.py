@@ -9,7 +9,7 @@ from django_dto_field.exceptions.django import field_errors
 
 
 class DTOFormField(forms.JSONField):
-    """Render DTO instances as JSON while leaving validation to the model field.
+    """Render DTO instances as JSON and report schema errors on the form field.
 
     :param converter: Converter shared with the associated model field.
     :param kwargs: Keyword arguments forwarded to Django's JSON form field.
@@ -27,6 +27,12 @@ class DTOFormField(forms.JSONField):
 
     def to_python(self, value: Any) -> Any:  # noqa: WPS110
         return super().to_python(self._normalize(value))
+
+    def validate(self, value: Any) -> None:  # noqa: WPS110
+        super().validate(value)
+        if value is not None:
+            with field_errors():
+                self.converter.from_data(value)
 
     def has_changed(self, initial: Any, data: Any) -> bool:  # noqa: WPS110
         return super().has_changed(self._normalize(initial), data)

@@ -7,9 +7,10 @@
 - For a focused test without the whole-library coverage gate or parallel workers: `uv run pytest -n 0 --no-cov tests/unit/test_conversion.py::test_nested_dataclass_round_trip`. Use the same flags with a file or directory for a focused suite.
 - `make all-checks` cleans caches/coverage output, then runs lint, typing, and tests. Use TDD for features/fixes: observe a failing behavior test before implementing; maintain 100% coverage (`CONTRIBUTING.md`).
 - `make lint` checks Ruff lint/formatting on `src tests`, docstring presence with `ruff check --select D100,D101,D104 src`, and Flake8 **WPS-only** rules on `src`. `make format` fixes Ruff issues/formatting; `make typing` runs strict `mypy src`. Plain `ruff check` does not reproduce the lint target.
-- E2E settings are in `tests/e2e/django_app/settings.py`: in-memory SQLite, no external database service. Pytest config supplies `DJANGO_SETTINGS_MODULE=django_app.settings` and adds `src` and `tests/e2e` to the import path.
-- Test-model migrations are checked in. Generate them with `PYTHONPATH=src:tests/e2e DJANGO_SETTINGS_MODULE=django_app.settings uv run django-admin makemigrations dict_field`; there is no `manage.py`.
-- Check migration drift with `PYTHONPATH=src:tests/e2e DJANGO_SETTINGS_MODULE=django_app.settings uv run django-admin makemigrations --check --dry-run`. Test another Django version without changing the lockfile with `uv run --with 'django>=5.2,<5.3' pytest -n 0 --no-cov`.
+- E2E settings are in `tests/e2e/django_app/settings.py`: in-memory SQLite by default; `DTO_TEST_DB=postgresql|mysql|mariadb` selects a Docker Compose service. `make e2e` runs the E2E tests without the whole-library coverage gate or parallel database workers. Pytest config supplies `DJANGO_SETTINGS_MODULE=django_app.settings` and adds `src` and `tests/e2e` to the import path.
+- CI runs 10 tox environments on PRs and pushes to `dev`/`main`: Python 3.10–3.14 with Django 5.2/SQLite; Python 3.12 with Django 6.0/SQLite; Python 3.14 with Django 6.1 on SQLite, PostgreSQL, MySQL, and MariaDB. Supported Django versions are 5.2, 6.0, and 6.1; Oracle is unsupported. `uvx --with tox-uv tox -e py312-django52-sqlite` runs one combination locally; start the relevant Docker Compose service before running a server backend environment. SQLite environments run all tests with 100% source coverage; external database environments run E2E tests only.
+- The E2E `dict_field` app is unmigrated through `MIGRATION_MODULES` in its test settings. Pytest creates its tables from the current models; do not generate or check in migrations for the test app.
+- Test another Django version without changing the lockfile with `uv run --with 'django>=5.2,<5.3' pytest -n 0 --no-cov`.
 
 ## Implementation constraints
 
@@ -22,7 +23,7 @@
 - Dataclasses require an explicit, importable schema; the default is `dict`. `deconstruct()` preserves schema. Validation runs on conversion and literal writes, not attribute assignment; full field validators still require `full_clean()`.
 - Validators receive storage values (JSON mapping, text, or bytes); `max_length` measures serialized text/bytes. Saving dictionary input does not replace the in-memory attribute with a DTO; `full_clean()` or `refresh_from_db()` performs that conversion. Binary fields retain Django's `editable=False` default.
 - JSON key lookups accept partial/scalar operands and projections return native values. Do not apply whole-DTO validation in `DTOJSONField.get_prep_value()` or to `KeyTransform` results. Preserve the distinction between SQL NULL and `Value(None)` JSON null.
-- Django field classes aren't runtime-subscriptable on Django 4.2. The `TYPE_CHECKING` base aliases supply generics to mypy without runtime subscription.
+- The `TYPE_CHECKING` base aliases supply Django field generics to mypy without runtime subscription.
 
 ## Documentation
 

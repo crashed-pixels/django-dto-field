@@ -8,7 +8,7 @@ Thank you for your interest in contributing! This document provides guidelines a
 
 **Core Tech Stack:**
 *   **Python:** 3.10 - 3.14
-*   **Framework:** Django >= 4.2.0
+*   **Framework:** Django >= 5.2
 *   **Serialization:** `msgspec` (for high-performance encoding/decoding)
 *   **Build & Package Management:** `uv`
 
@@ -37,7 +37,7 @@ We require **100% statement and branch coverage** for all new and existing runti
 *   Coverage is enforced via `pytest-cov`.
 *   If you add a new feature or fix a bug, you **must** write tests for it. Run with `make test`.
 *   Use TDD: add a test describing the behavior, observe its failure, then implement and refactor with the tests passing.
-*   `make test` includes unit and Django E2E tests. E2E uses in-memory SQLite, with settings and import paths configured in `pyproject.toml`.
+*   `make test` includes unit and Django E2E tests using in-memory SQLite by default, with settings and import paths configured in `pyproject.toml`.
 *   For a focused suite: `uv run pytest -n 0 --no-cov tests/unit/test_conversion.py`. The default pytest invocation uses parallel workers and enforces coverage over the entire library.
 
 ### 2. Strict Typing
@@ -61,22 +61,93 @@ We use a `Makefile` to standardize development workflows. All commands automatic
 | Command | Description |
 | :--- | :--- |
 | `make test` | Run all unit and Django E2E tests with statement/branch coverage (alias for `make unit`). |
+| `make e2e` | Run Django E2E tests on the selected database (SQLite by default). |
 | `make typing` | Run strict `mypy` type checks on the `src` directory. |
 | `make lint` | Run Ruff lint/format checks on source and tests, and WPS checks on source. |
 | `make format` | Auto-fix imports (`ruff`) and format code (`ruff format`). |
 | `make all-checks` | Clean caches and run linting, typing, and tests (Recommended before PR). |
 
-The test app's migrations are checked in. After changing its models, run:
+The E2E test app is unmigrated: Django creates its tables from the current
+models when pytest sets up the test database. Changes to test models do not
+require generating migration files.
+
+E2E scenarios in `tests/e2e/dict_field/tests/` cover persistence, transactions,
+JSON queries, relationships, ModelForms, HTTP/admin requests, fixtures, historical
+models, and schema evolution. `schemas.py` contains importable order DTOs; the
+test app has no checked-in migrations. Backend-specific scenarios use Django
+feature flags, and key projections are compared with native `JSONField` behavior.
+
+### E2E tests on SQL databases
+
+The library supports SQLite, PostgreSQL, MySQL, and MariaDB. `make test` runs
+the entire suite on SQLite without Docker. To run the E2E suite on another backend,
+start its Docker Compose service, install the corresponding test driver, and set
+`DTO_TEST_DB`:
+
+| `DTO_TEST_DB` | Compose service | Driver group | Local port |
+| :--- | :--- | :--- | ---: |
+| `postgresql` | `postgresql` | `dev` (already installed) | 55432 |
+| `mysql` | `mysql` | `mysql` | 53306 |
+| `mariadb` | `mariadb` | `mysql` | 53307 |
+
+For example:
 
 ```bash
-PYTHONPATH=src:tests/e2e DJANGO_SETTINGS_MODULE=django_app.settings uv run django-admin makemigrations dict_field
+docker compose --profile postgresql up -d --wait postgresql
+DTO_TEST_DB=postgresql make e2e
+docker compose --profile postgresql down -v
 ```
 
-To exercise a newer Django version without updating the lockfile:
+For MySQL and MariaDB, install the MySQL client development libraries first
+(for example, `brew install mysql-client pkg-config` on macOS or
+`sudo apt-get install default-libmysqlclient-dev pkg-config` on Ubuntu), then
+run `uv sync --group mysql`. PostgreSQL uses the
+driver from the default dev dependencies. Substitute the backend name in the
+Compose and `make e2e` commands above.
+
+`DTO_TEST_DB_HOST`, `DTO_TEST_DB_PORT`, `DTO_TEST_DB_NAME`, `DTO_TEST_DB_USER`,
+and `DTO_TEST_DB_PASSWORD` override the test settings for an external server.
+The Compose credentials are for disposable local databases only. Django creates
+and destroys an isolated test database on every run.
+
+### Python, Django, and database matrix
+
+Every PR and push to `dev` or `main` runs 10 tox environments:
+
+| Python | Django | Database | Jobs |
+| :--- | :--- | :--- | ---: |
+| 3.10–3.14 | 5.2 | SQLite | 5 |
+| 3.12 | 6.0 | SQLite | 1 |
+| 3.14 | 6.1 | SQLite | 1 |
+| 3.14 | 6.1 | PostgreSQL, MySQL, MariaDB | 3 |
+
+SQLite environments run the entire suite with 100% source coverage; server
+database environments run the E2E suite. These representative combinations cover
+every supported Python and Django version without testing the full cross-product.
+Superseded workflow runs are cancelled automatically.
+
+Run the default SQLite environment locally with `uvx --with tox-uv tox`. To
+select a combination, use `py<version>-django<version>-<database>`:
 
 ```bash
-uv run --with 'django>=5.2,<5.3' pytest -n 0 --no-cov
+uvx --with tox-uv tox -e py312-django52-sqlite
+docker compose --profile postgresql up -d --wait postgresql
+uvx --with tox-uv tox -e py312-django52-postgresql
+docker compose --profile postgresql down -v
 ```
+
+Install other Python versions with `uv python install 3.10 3.11 3.12 3.13 3.14`.
+For MySQL/MariaDB, the same system client libraries are required for tox as
+for `make e2e`. On macOS, set
+`PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"` when invoking
+tox so it can compile `mysqlclient`.
+
+tox installs the appropriate Django and database driver into each environment
+independently of `uv.lock`.
+
+JSON `__in` lookups are expected to fail on MySQL/MariaDB with Django versions
+before 6.1: those Django backends compare JSON values against text in that
+lookup. Whole-value exact JSON lookups remain covered.
 
 ## Submitting a Pull Request
 

@@ -23,6 +23,12 @@ format:
 .PHONY: test
 test: unit
 
+.PHONY: e2e
+e2e:
+	DTO_TEST_DB=$(DTO_TEST_DB) uv run --no-sync pytest -n 0 --no-cov tests/e2e
+
+DTO_TEST_DB ?= sqlite
+
 .PHONY: clean
 clean: 
 	rm -fr .mypy_cache .ruff_cache .pytest_cache htmlcov .coverage
