@@ -26,9 +26,27 @@
 
 For Django developers who want to store structures in model fields but do not want to manually serialize dictionaries into DTO objects and vice versa. `django-dto-field` hide converting logic and gives you original Django interface.
 
-## `JSONField` vs `django-dto-field`
+## Table of contents
 
-Django itself have a `JSONField` for storing structures in JSON comparable format. But it have some restrictions. Let's see it through example.
+1. [Quick start](#quick-start)
+2. [No schema is set](#no-schema-is-set)
+3. [Supported DTO types](#supported-dto-types)
+4. [Django Fields](#django-fields)
+    1. [DTOJSONField](#dtojsonfield)
+    2. [DTOBinaryField](#dtobinaryfield)
+5. [Supported versions and databases](#supported-versions-and-databases)
+6. [Help and contribute](#help-and-contribute)
+7. [License](#license)
+
+## Quick start
+
+Django itself have a `JSONField` for storing structures in JSON comparable format. But it have some restrictions. Let's see it through comparing `JSONField` and `DTOJSONField` on one task.
+
+First, installing:
+
+```bash
+pip install django-dto-field
+```
 
 Assume that you have this `dataclass` DTO.
 
@@ -132,6 +150,7 @@ Now let's do the same with `django-dto-field`.
 ... }
 
 >>> try:
+...     # Note that DTOJSONField accept dict and convert it to dataclass under the hood.
 ...     DTOOrder.objects.create(customer=invalid_customer)
 ... except ValidationError:
 ...     print("The schema is invalid!")
@@ -142,108 +161,9 @@ As a result `django-dto-field` making usage:
 - Cleaner so you can focus on business logic;
 - Saver through runtime validation;
 
-When not to use `django-dto-field`?
+When not to use `django-dto-field`? If your structures changing very often it is prefer to use Django's `JSONField` and `dict` type, so you do not have to change DTO object every time.
 
-If your structures changing very often it is prefer to use Django's `JSONField` and `dict` type, so you do not have to change DTO object every time.
-
-## Features
-
-- [X] Python `dict` support by default
-- [X] Python [dataclasses](https://docs.python.org/3/library/dataclasses.html) support
-- [ ] [Pydantic](https://docs.pydantic.dev/) models
-- [ ] [Marshmallow](https://marshmallow.readthedocs.io/) schemas
-- [ ] [attrs](https://www.attrs.org/) defines
-- [X] Storing in BinaryField
-- [X] Storing in CharField
-- [X] Storing in JSONField
-- [X] Lookups for JSONField
-- [X] JSONField forms
-- [X] Supported MySQL DB
-- [X] Supported Postgres DB
-- [X] Supported MariaDB
-
-## Quick start
-
-Installing:
-
-```bash
-pip install django-dto-field
-```
-
-Usage:
-
-```python
->>> from dataclasses import dataclass
->>> from django.db import models
->>> from django_dto_field.fields.json import DTOJSONField
-
-
->>> @dataclass  # Define DTO
-... class Address:
-...    city: str
-
->>> @dataclass
-... class Customer:  # Use nested DTO
-...    name: str
-...    address: Address
-
-
->>> class Order(models.Model):  # Add field to model
-...    customer = DTOJSONField(schema=Customer)
-
->>> order = Order.objects.create(  # Save it
-...    customer=Customer("Alice", Address("London"))
-... )
-
-
->>> order.refresh_from_db()  # Get it
->>> assert order.customer == Customer("Alice", Address("London"))
->>> assert isinstance(order.customer.address, Address)
-
->>> Order.objects.filter(customer__address__city="London")  # Use lookups
->>> Order.objects.values_list("customer__address", flat=True)  # Return dictionary
-```
-
-## Fields
-
-Use `schema=Customer` to store the dataclass from the quick start. Each field
-accepts its Django base field's options, such as `null` and `blank`.
-
-| Field | Django base | Stored value |
-| --- | --- | --- |
-| `DTOJSONField` | `JSONField` | Native JSON |
-| `DTOCharField` | `CharField` | JSON text |
-| `DTOBinaryField` | `BinaryField` | UTF-8 JSON bytes |
-
-The quick start uses `DTOJSONField`. To store the same DTO as text or bytes:
-
-```python
->>> from django_dto_field.fields.char import DTOCharField
->>> from django_dto_field.fields.binary import DTOBinaryField
-
->>> class StoredOrder(models.Model):
-...     customer_text = DTOCharField(schema=Customer, max_length=500)
-...     customer_bytes = DTOBinaryField(schema=Customer)
-```
-
-`DTOJSONField` supports Django JSON key lookups; projected keys return native
-values, not DTOs. `DTOCharField` requires `max_length`, which limits the serialized
-JSON text. `DTOBinaryField` is not editable by default, as with Django's
-`BinaryField`.
-
-JSON key projections follow Django's backend behavior. On SQLite, use
-`KeyTextTransform` when strings such as `"0"` or `"null"` must remain strings.
-For optional form input, use `null=True, blank=True`, or submit `{}` for an empty
-dictionary; `blank=True` alone does not allow SQL NULL.
-
-Schema validation runs on assignment by default, including model construction.
-Set `validate_on_assignment=False` on a field to defer validation until conversion
-or saving. In-place changes to a DTO or dictionary are checked on save.
-SQL expressions bypass literal-value validation; DTO results are checked on load.
-Call `full_clean()` to run Django field validators; they receive the stored
-mapping, text, or bytes.
-
-## Default `dict` DTO
+## No schema is set
 
 Omit `schema` on any DTO field to store dictionaries with JSON-compatible values.
 Loading returns a `dict`.
@@ -258,6 +178,52 @@ Loading returns a `dict`.
 {'kind': 'signup'}
 ```
 
+## Supported DTO types
+
+We currently support `datalcasses` and `dict` (without validation) as DTO objects.
+
+If you think that some DTO should be also supported - please create an issue at [issue tracker](https://github.com/crashed-pixels/django-dto-field/issues). PR's are also welcome <3
+
+## Django Fields
+
+We support some Django fields making wrapper around them to provide `django-dto-field` features. Each field
+accepts its Django base field's options, such as `null` and `blank`.
+
+Schema validation runs on assignment by default, including model construction.
+Set `DTOJSONField(schema=Customer, validate_on_assignment=False)` on a field to defer validation until conversion
+or saving. In-place changes to a DTO or dictionary are checked on save.
+SQL expressions bypass literal-value validation. DTO results are checked on load.
+Call `full_clean()` to run Django field validators; they receive the stored
+mapping or bytes.
+
+For optional form input, use `null=True, blank=True`, or submit `{}` for an empty
+dictionary; `blank=True` alone does not allow SQL NULL.
+
+### `DTOJSONField`
+
+You are already familiar with this field from [quick start](#quick-start).
+
+- Storing native JSON values in DB. 
+- Using Django `JSONField` as base.
+- Supports Django JSON key lookups. 
+- Projected keys return native values, not DTOs.
+- JSON key projections follow Django's backend behavior. On SQLite, use
+`KeyTextTransform` when strings such as `"0"` or `"null"` must remain strings.
+
+### `DTOBinaryField`
+
+Simple usage:
+
+```python
+>>> from django_dto_field.fields.binary import DTOBinaryField
+>>> class StoredOrder(models.Model):
+...     customer_bytes = DTOBinaryField(schema=Customer)
+```
+
+- Storing UTF-8 JSON bytes in DB.
+- Using Django `BinaryField` as base.
+- Is not editable by default, as with Django's `BinaryField`.
+
 ## Supported versions and databases
 
 - Python 3.10–3.14.
@@ -268,7 +234,7 @@ Loading returns a `dict`.
 ## Help and contribute
 
 Have a question, spotted a bug, or want a new DTO integration? We'd love to hear
-from you in the [issue tracker](https://github.com/skv0zsneg/django-dto-field/issues).
+from you in the [issue tracker](https://github.com/crashed-pixels/django-dto-field/issues).
 For bugs, include a minimal example, your Python/Django versions, and the expected
 and actual behavior.
 
