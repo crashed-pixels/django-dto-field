@@ -1,6 +1,6 @@
 <p align="center">
     <br/>
-    <img src="docs/media/logo.png" width="700" alt="django-dto-field logo"/>
+    <img src="https://github.com/crashed-pixels/django-dto-field/blob/dev/docs/media/logo.png?raw=true" width="700" alt="django-dto-field logo"/>
     <br/>
     <br/>
     <a href="https://pypi.org/project/django-dto-field/" target="_blank">
@@ -19,7 +19,12 @@
     <a href="https://github.com/crashed-pixels" target="_blank">
         <img src="https://img.shields.io/badge/crashed-pixels-green?style=flat" alt="wemake style"/>
     </a>
+    <a href="https://pypi.org/project/django-dto-field/" target="_blank">
+        <img src="https://img.shields.io/pypi/dm/django-dto-field" alt="wemake style"/>
+    </a>
 </p>
+
+For Django developers who want to store structures in model fields but do not want to manually serialize dictionaries into DTO objects and vice versa. `django-dto-field` hide converting logic and gives you original Django interface.
 
 ## Features
 
