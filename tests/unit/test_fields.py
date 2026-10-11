@@ -145,3 +145,15 @@ def test_null_value_to_string(field_class):
     instance = models.Model.__new__(models.Model)
     instance.payload = None
     assert field.value_to_string(instance) is None
+
+
+@dataclass
+class OtherUser:
+    identifier: int
+
+
+def test_mismatched_dataclass_raises_descriptive_error():
+    field = DTOField(schema=User)
+    with pytest.raises(DTOFieldError) as exc_info:
+        field.to_python(OtherUser(identifier=1))
+    assert exc_info.value.messages == ["Expected User DTO, but OtherUser is given."]
