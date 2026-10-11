@@ -153,6 +153,8 @@ lookup. Whole-value exact JSON lookups remain covered.
 
 ## Submitting a Pull Request
 
+By participating in this project, you agree to follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 Documentation, tests, bug fixes, and adapter proposals are welcome. For larger
 changes, open an [issue](https://github.com/crashed-pixels/django-dto-field/issues) first
 to discuss the intended behavior. Bug reports should include a minimal example,
