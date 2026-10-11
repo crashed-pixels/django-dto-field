@@ -1,5 +1,6 @@
 """Coordinate DTO adapters independently of Django and database storage."""
 
+from dataclasses import is_dataclass
 from typing import Any, Generic, TypeGuard
 
 from django_dto_field.adapters.base import DTO, DTOAdapter
@@ -45,5 +46,11 @@ class DTOConverter(Generic[DTO]):
     def from_data(self, payload: object) -> DTO:
         """Require an object-shaped payload and delegate schema validation."""
         if not isinstance(payload, dict):
+            if is_dataclass(payload) and not isinstance(payload, type):
+                expected = getattr(self.schema, "__name__", str(self.schema))
+                given = type(payload).__name__
+                raise DTOValidationError(
+                    f"Expected {expected} DTO, but {given} is given.",
+                )
             raise DTOValidationError("DTO data must be a JSON object.")
         return self._adapter.from_data(payload)

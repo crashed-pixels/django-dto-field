@@ -62,6 +62,20 @@ def test_invalid_dataclass_instance(data):
         DTOConverter(Person).to_data(data)
 
 
+@dataclass
+class OtherPerson:
+    name: str
+
+
+def test_mismatched_dataclass_instance_error_message():
+    converter = DTOConverter(Person)
+    other = OtherPerson(name="Ada")
+    with pytest.raises(
+        DTOError, match="Expected Person DTO, but OtherPerson is given."
+    ):
+        converter.from_data(other)
+
+
 def test_unserializable_dict_has_library_exception():
     with pytest.raises(SerializationError) as error:
         DTOConverter(dict).to_data({"bad": object()})
