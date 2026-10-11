@@ -1,23 +1,50 @@
 [project]
 name = "django-dto-field"
-version = "0.2.0"
-description = "Storing DTO data in easy-to-use and production-ready Django Model Field with fast [de]serialization."
-authors = [{ name = "skv0zsneg", email = "<klimentlamonov@yandex.ru>" }]
+version = "1.0.0"
+description = "Django model fields for storing DTO's with automatic conversion and runtime validation."
+keywords = [
+    "django",
+    "model-field",
+    "jsonfield",
+    "dataclass",
+    "dto",
+    "serialization",
+    "schema-validation",
+]
+authors = [{ name = "skv0zsneg", email = "klimentlamonov@yandex.ru" }]
 requires-python = ">=3.10,<4.0"
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 classifiers = [
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+    "Framework :: Django :: 6.1",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+    "Development Status :: 5 - Production",
 ]
-dependencies = [
-    "django>=5.2",
-    "msgspec>=0.20.0,<0.23.0",
-]
+
+dependencies = ["django>=5.2", "msgspec>=0.20.0,<0.23.0"]
+
+[project.urls]
+Homepage = "https://github.com/crashed-pixels/django-dto-field"
+Documentation = "https://github.com/crashed-pixels/django-dto-field/blob/main/README.md"
+Repository = "https://github.com/crashed-pixels/django-dto-field"
+Issues = "https://github.com/crashed-pixels/django-dto-field/issues"
+Changelog = "https://github.com/crashed-pixels/django-dto-field/blob/main/CHANGELOG.md"
+Contributing = "https://github.com/crashed-pixels/django-dto-field/blob/main/CONTRIBUTING.md"
 
 [dependency-groups]
 dev = [
