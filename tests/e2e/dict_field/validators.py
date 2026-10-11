@@ -8,11 +8,6 @@ def mapping_validator(value):
         raise ValidationError("Expected an allowed mapping.")
 
 
-def text_validator(value):
-    if not isinstance(value, str) or value != '{"allowed":true}':
-        raise ValidationError("Expected allowed JSON text.")
-
-
 def binary_validator(value):
     if not isinstance(value, bytes) or value != b'{"allowed":true}':
         raise ValidationError("Expected allowed JSON bytes.")

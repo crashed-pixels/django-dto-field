@@ -13,7 +13,7 @@ from dict_field.schemas import Delivery, LineItem
 pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.parametrize("field_name", ("snapshot", "text", "binary"))
+@pytest.mark.parametrize("field_name", ("snapshot", "binary"))
 def test_rich_snapshot_restores_member_types(order, field_name):
     order.refresh_from_db()
     snapshot = getattr(order, field_name)
@@ -68,7 +68,7 @@ def test_abstract_field_and_proxy_keep_assignment_validation(order):
     assert order.snapshot.note == "proxy edit"
 
 
-@pytest.mark.parametrize("field_name", ("text", "binary", "json"))
+@pytest.mark.parametrize("field_name", ("binary", "json"))
 def test_json_numeric_and_unicode_boundaries_survive_storage(field_name):
     payload = {
         "low": -(2**63),
@@ -81,7 +81,7 @@ def test_json_numeric_and_unicode_boundaries_survive_storage(field_name):
     assert getattr(instance, field_name) == payload
 
 
-@pytest.mark.parametrize("field_name", ("snapshot", "text", "binary"))
+@pytest.mark.parametrize("field_name", ("snapshot", "binary"))
 def test_invalid_line_item_member_is_rejected_on_save(order, field_name):
     getattr(order, field_name).items.append(LineItem("bad", "many"))
     with pytest.raises(ValidationError), transaction.atomic():

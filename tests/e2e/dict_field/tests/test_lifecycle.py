@@ -34,7 +34,7 @@ def test_rich_fixture_restores_deleted_order(order):
     for restored in serializers.deserialize("json", fixture):
         restored.save()
     loaded = Order.objects.get(pk=primary_key)
-    assert loaded.snapshot == loaded.text == loaded.binary == expected
+    assert loaded.snapshot == loaded.binary == expected
 
 
 @pytest.mark.parametrize("model", (DictModel, DataclassModel, MappingModel))
@@ -45,9 +45,7 @@ def test_dumpdata_loaddata_restores_deleted_rows(model, tmp_path):
         payload = {"identifier": 7}
     else:
         payload = {"tags": ["Привет", None]}
-    instance = model.objects.create(
-        **dict.fromkeys(("text", "binary", "json"), payload)
-    )
+    instance = model.objects.create(**dict.fromkeys(("binary", "json"), payload))
     primary_key = instance.pk
     output = StringIO()
     call_command("dumpdata", model._meta.label, stdout=output)
@@ -56,15 +54,13 @@ def test_dumpdata_loaddata_restores_deleted_rows(model, tmp_path):
     instance.delete()
     call_command("loaddata", str(fixture), verbosity=0)
     restored = model.objects.get(pk=primary_key)
-    assert restored.text == restored.binary == restored.json == payload
+    assert restored.binary == restored.json == payload
 
 
 def test_invalid_fixture_rolls_back_preceding_valid_record(tmp_path):
     payload = UserDTO(1, Address("London"))
     instances = [
-        DataclassModel.objects.create(
-            **dict.fromkeys(("text", "binary", "json"), payload)
-        )
+        DataclassModel.objects.create(**dict.fromkeys(("binary", "json"), payload))
         for _ in range(2)
     ]
     records = json.loads(serializers.serialize("json", instances))
@@ -81,7 +77,7 @@ def test_invalid_fixture_rolls_back_preceding_valid_record(tmp_path):
 def test_migration_serialization_renders_historical_field_behavior(model):
     state = ProjectState()
     model_state = ModelState.from_model(model)
-    for name in ("text", "binary", "json"):
+    for name in ("binary", "json"):
         source, imports = MigrationWriter.serialize(model_state.fields[name])
         namespace = {}
         exec("\n".join(sorted(imports)), namespace)
@@ -93,7 +89,7 @@ def test_migration_serialization_renders_historical_field_behavior(model):
         assert field.schema is MessageSchema
         assert field.adapter is MappingAdapter
         instance = historical.objects.create(
-            text={"identifier": 1}, binary={"identifier": 1}, json={"identifier": 1}
+            binary={"identifier": 1}, json={"identifier": 1}
         )
         with pytest.raises(ValidationError):
             instance.json = {"identifier": -1}
@@ -107,7 +103,7 @@ def test_migration_serialization_renders_historical_field_behavior(model):
             field.to_python(instance.json)
 
 
-@pytest.mark.parametrize("field_name", ("text", "binary", "json"))
+@pytest.mark.parametrize("field_name", ("binary", "json"))
 def test_old_payload_loads_new_member_default(field_name):
     original = DictModel.objects.create(**{field_name: {"theme": "dark"}})
     state = ProjectState()
@@ -125,7 +121,7 @@ def test_old_payload_loads_new_member_default(field_name):
 
 
 @pytest.mark.parametrize("schema", (RequiredPreferences, NumericPreferences))
-@pytest.mark.parametrize("field_name", ("text", "binary", "json"))
+@pytest.mark.parametrize("field_name", ("binary", "json"))
 def test_incompatible_schema_change_rejects_existing_payload(schema, field_name):
     original = DictModel.objects.create(**{field_name: {"theme": "dark"}})
     state = ProjectState()

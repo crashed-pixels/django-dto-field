@@ -22,7 +22,7 @@ from dict_field.models import (
 from django_dto_field.forms.json import DTOFormField
 
 pytestmark = pytest.mark.django_db
-FIELD_NAMES = ("text", "binary", "json")
+FIELD_NAMES = ("binary", "json")
 DTO_CASES = (
     (DictModel, {"nested": [1, None, True, "Привет"]}),
     (DataclassModel, UserDTO(1, Address("London"))),
@@ -82,12 +82,11 @@ def test_native_database_representations():
             f"SELECT {columns} FROM {table} WHERE {primary_key} = %s",
             [instance.pk],
         )
-        text, binary, json_value = cursor.fetchone()
+        binary, json_value = cursor.fetchone()
     if hasattr(binary, "read"):
         binary = binary.read()
     if hasattr(json_value, "read"):
         json_value = json_value.read()
-    assert text == '{"a":1}'
     assert bytes(binary) == b'{"a":1}'
     assert (json.loads(json_value) if isinstance(json_value, str) else json_value) == {
         "a": 1
@@ -142,12 +141,12 @@ def test_nulls_defaults_and_mutation():
         assert getattr(nullable, field_name) is None
         assert NullableModel.objects.filter(**{f"{field_name}__isnull": True}).exists()
     first, second = DictModel.objects.create(), DictModel.objects.create()
-    first.text["changed"] = True
-    first.save(update_fields=["text"])
+    first.binary["changed"] = True
+    first.save(update_fields=["binary"])
     first.refresh_from_db()
     second.refresh_from_db()
-    assert first.text == {"changed": True}
-    assert second.text == first.binary == first.json == {}
+    assert first.binary == {"changed": True}
+    assert second.binary == second.json == first.json == {}
 
 
 @pytest.mark.parametrize("field_name", FIELD_NAMES)
@@ -267,7 +266,7 @@ def test_django_fixture_round_trip(model, payload):
 
 @pytest.mark.parametrize(
     "field_name, malformed",
-    [("text", "not json"), ("binary", b"not json"), ("json", '{"identifier":"bad"}')],
+    [("binary", b"not json"), ("json", '{"identifier":"bad"}')],
 )
 def test_corrupted_database_values_raise_validation_error(field_name, malformed):
     instance = DataclassModel.objects.create(
@@ -284,29 +283,27 @@ def test_corrupted_database_values_raise_validation_error(field_name, malformed)
 
 
 def test_model_form_converts_json_to_nested_dataclass():
-    form_class = forms.modelform_factory(DataclassModel, fields=["text", "json"])
+    form_class = forms.modelform_factory(DataclassModel, fields=["json"])
     payload = '{"identifier":1,"address":{"city":"London"}}'
-    form = form_class(data={"text": payload, "json": payload})
+    form = form_class(data={"json": payload})
     assert form.is_valid(), form.errors
     instance = form.save(commit=False)
     instance.binary = instance.json
     instance.save()
     instance.refresh_from_db()
     assert instance.json == UserDTO(1, Address("London"))
-    assert instance.text == instance.json
+    assert instance.binary == instance.json
     initial = form_class(instance=instance)
-    assert json.loads(initial["text"].value()) == json.loads(payload)
     assert json.loads(initial["json"].value()) == json.loads(payload)
-    assert not form_class(
-        instance=instance, data={"text": payload, "json": payload}
-    ).has_changed()
+    assert not form_class(instance=instance, data={"json": payload}).has_changed()
 
 
-def test_invalid_model_form_reports_errors():
-    form_class = forms.modelform_factory(DataclassModel, fields=["text", "json"])
-    form = form_class(data={"text": "not json", "json": '{"identifier":"bad"}'})
+@pytest.mark.parametrize("payload", ["not json", '{"identifier":"bad"}'])
+def test_invalid_model_form_reports_errors(payload):
+    form_class = forms.modelform_factory(DataclassModel, fields=["json"])
+    form = form_class(data={"json": payload})
     assert not form.is_valid()
-    assert set(form.errors) == {"text", "json"}
+    assert set(form.errors) == {"json"}
 
 
 def test_nullable_form_accepts_null():
@@ -341,11 +338,10 @@ def test_custom_adapter_model_forms_and_json_key_lookups():
     instance = CustomModel.objects.create(**dict.fromkeys(FIELD_NAMES, Message(7)))
     assert CustomModel.objects.filter(json__identifier=7).get() == instance
     assert CustomModel.objects.values_list("json__identifier", flat=True).get() == 7
-    form_class = forms.modelform_factory(CustomModel, fields=["text", "json"])
+    form_class = forms.modelform_factory(CustomModel, fields=["json"])
     initial = form_class(instance=instance)
-    assert json.loads(initial["text"].value()) == {"identifier": 7}
     assert json.loads(initial["json"].value()) == {"identifier": 7}
-    payload = dict.fromkeys(["text", "json"], '{"identifier":7}')
+    payload = {"json": '{"identifier":7}'}
     unchanged = form_class(instance=instance, data=payload)
     assert not unchanged.has_changed()
     assert unchanged.is_valid(), unchanged.errors
@@ -356,7 +352,7 @@ def test_custom_adapter_model_forms_and_json_key_lookups():
     assert changed.is_valid(), changed.errors
     changed.save()
     instance.refresh_from_db()
-    assert instance.text == instance.json == Message(8)
+    assert instance.json == Message(8)
 
 
 @pytest.mark.parametrize("field_name", FIELD_NAMES)

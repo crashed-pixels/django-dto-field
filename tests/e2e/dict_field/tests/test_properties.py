@@ -46,11 +46,11 @@ JSON_VALUES = st.recursive(
 @given(JSON_VALUES)
 def test_generated_json_survives_orm_and_key_projection(nested):
     payload = {"nested": nested}
-    instance = DictModel.objects.create(text=payload, binary=payload, json=payload)
+    instance = DictModel.objects.create(binary=payload, json=payload)
     native = NativeJSONModel.objects.create(payload=payload)
     try:
         instance.refresh_from_db()
-        assert instance.text == instance.binary == instance.json == payload
+        assert instance.binary == instance.json == payload
         projection = DictModel.objects.values_list("json__nested", flat=True).get(
             pk=instance.pk
         )
@@ -72,11 +72,11 @@ def test_generated_json_survives_orm_and_key_projection(nested):
 def test_generated_dataclass_survives_bulk_insert(identifier, city):
     payload = UserDTO(identifier, Address(city))
     instance = DataclassModel.objects.bulk_create(
-        [DataclassModel(pk=1, text=payload, binary=payload, json=payload)]
+        [DataclassModel(pk=1, binary=payload, json=payload)]
     )[0]
     try:
         instance.refresh_from_db()
-        assert instance.text == instance.binary == instance.json == payload
+        assert instance.binary == instance.json == payload
         found = DataclassModel.objects.filter(
             pk=instance.pk, json__address__city=city
         ).exists()
@@ -105,11 +105,11 @@ def test_generated_rich_snapshot_restores_types(customer_name, items, delivery):
         delivery=delivery,
     )
     instance = Order.objects.create(
-        customer=customer, snapshot=snapshot, text=snapshot, binary=snapshot
+        customer=customer, snapshot=snapshot, binary=snapshot
     )
     try:
         instance.refresh_from_db()
-        assert instance.snapshot == instance.text == instance.binary == snapshot
+        assert instance.snapshot == instance.binary == snapshot
         assert instance.snapshot.delivery is delivery
         assert all(isinstance(item, LineItem) for item in instance.snapshot.items)
     finally:
@@ -122,20 +122,15 @@ def test_generated_rich_snapshot_restores_types(customer_name, items, delivery):
 @given(st.lists(TEXT, min_size=1, max_size=4))
 def test_generated_repeated_nested_edits_survive_refresh(cities):
     instance = DataclassModel.objects.create(
-        **dict.fromkeys(("text", "binary", "json"), UserDTO(1, Address("London")))
+        **dict.fromkeys(("binary", "json"), UserDTO(1, Address("London")))
     )
     try:
         for city in cities:
-            for name in ("text", "binary", "json"):
+            for name in ("binary", "json"):
                 getattr(instance, name).address.city = city
             instance.save()
             instance.refresh_from_db()
-            assert (
-                instance.text
-                == instance.binary
-                == instance.json
-                == UserDTO(1, Address(city))
-            )
+            assert instance.binary == instance.json == UserDTO(1, Address(city))
     finally:
         instance.delete()
 
@@ -145,12 +140,10 @@ def test_generated_repeated_nested_edits_survive_refresh(cities):
 @given(st.integers(min_value=1, max_value=10000))
 def test_generated_mapping_adapter_round_trip(identifier):
     payload = {"identifier": identifier}
-    instance = MappingModel.objects.create(
-        **dict.fromkeys(("text", "binary", "json"), payload)
-    )
+    instance = MappingModel.objects.create(**dict.fromkeys(("binary", "json"), payload))
     try:
         instance.refresh_from_db()
-        assert instance.text == instance.binary == instance.json == payload
+        assert instance.binary == instance.json == payload
         assert MappingModel.objects.filter(
             pk=instance.pk, json__identifier=identifier
         ).exists()

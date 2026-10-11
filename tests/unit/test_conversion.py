@@ -7,7 +7,6 @@ from django_dto_field.conversion.converter import DTOConverter
 from django_dto_field.exceptions.base import DTOError, SchemaError, SerializationError
 from django_dto_field.storage.binary import BinaryStorage
 from django_dto_field.storage.json import JSONStorage
-from django_dto_field.storage.text import TextStorage
 
 
 @dataclass
@@ -72,7 +71,6 @@ def test_unserializable_dict_has_library_exception():
 @pytest.mark.parametrize(
     "storage, expected",
     [
-        (TextStorage(), '{"a":1}'),
         (BinaryStorage(), b'{"a":1}'),
         (JSONStorage(), {"a": 1}),
     ],

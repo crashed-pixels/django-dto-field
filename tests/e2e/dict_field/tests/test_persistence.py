@@ -16,7 +16,7 @@ from dict_field.models import (
 )
 
 pytestmark = pytest.mark.django_db
-ORDER_FIELDS = ("snapshot", "text", "binary")
+ORDER_FIELDS = ("snapshot", "binary")
 
 
 @pytest.mark.parametrize("field_name", ORDER_FIELDS)
@@ -39,13 +39,11 @@ def test_invalid_mutation_leaves_stored_snapshot_unchanged(order, field_name):
     assert getattr(order, field_name).customer == "Alice"
 
 
-@pytest.mark.parametrize("field_name", ("text", "binary", "json"))
+@pytest.mark.parametrize("field_name", ("binary", "json"))
 @pytest.mark.parametrize("model", (CustomModel, MappingModel))
 def test_adapter_mutations_are_revalidated_on_save(model, field_name):
     payload = Message(1) if model is CustomModel else {"identifier": 1}
-    instance = model.objects.create(
-        **dict.fromkeys(("text", "binary", "json"), payload)
-    )
+    instance = model.objects.create(**dict.fromkeys(("binary", "json"), payload))
     instance.refresh_from_db()
     assigned = getattr(instance, field_name)
     if model is CustomModel:
@@ -121,18 +119,13 @@ def test_orm_shortcuts_create_from_callable_defaults(method):
     instance, created = getattr(DataclassModel.objects, method)(
         pk=101,
         defaults=dict.fromkeys(
-            ("text", "binary", "json"),
+            ("binary", "json"),
             lambda: {"identifier": 1, "address": {"city": "Paris"}},
         ),
     )
     instance.refresh_from_db()
     assert created
-    assert (
-        instance.text
-        == instance.binary
-        == instance.json
-        == UserDTO(1, Address("Paris"))
-    )
+    assert instance.binary == instance.json == UserDTO(1, Address("Paris"))
 
 
 def test_get_or_create_does_not_evaluate_defaults_for_existing_row(order):
@@ -177,21 +170,21 @@ def test_invalid_update_or_create_preserves_existing_row(order):
 def test_callable_defaults_are_independent_between_fields_and_instances(order):
     second = Order.objects.create(customer=order.customer)
     order.snapshot.tags.append("gift")
-    assert second.snapshot.tags == order.text.tags == order.binary.tags == []
+    assert second.snapshot.tags == order.binary.tags == []
 
 
 def test_dictionary_defaults_are_independent():
     first, second = DictModel(), DictModel()
     first.json["new"] = True
-    assert second.json == first.text == first.binary == {}
+    assert second.json == second.binary == first.binary == {}
 
 
 def test_mapping_adapter_round_trip_lookups_and_partial_operands():
     instance = MappingModel.objects.create(
-        text={"identifier": 7}, binary={"identifier": 7}, json={"identifier": 7}
+        binary={"identifier": 7}, json={"identifier": 7}
     )
     instance.refresh_from_db()
-    assert instance.text == instance.binary == instance.json == {"identifier": 7}
+    assert instance.binary == instance.json == {"identifier": 7}
     assert MappingModel.objects.filter(json__identifier=7).get() == instance
     assert MappingModel.objects.values_list("json__identifier", flat=True).get() == 7
     assert not MappingModel.objects.filter(json={"unrelated": "operand"}).exists()

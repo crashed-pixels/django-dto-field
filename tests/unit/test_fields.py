@@ -8,7 +8,6 @@ from django.db import connection, models
 from django_dto_field.exceptions.base import DTOError
 from django_dto_field.exceptions.django import DTOFieldError
 from django_dto_field.fields.binary import DTOBinaryField
-from django_dto_field.fields.char import DTOCharField
 from django_dto_field.fields.json import DTOJSONField
 
 
@@ -17,13 +16,17 @@ class User:
     identifier: int
 
 
-FIELDS = [DTOCharField, DTOBinaryField, DTOJSONField]
+FIELDS = [DTOBinaryField, DTOJSONField]
+
+
+def test_character_field_module_is_no_longer_available():
+    with pytest.raises(ModuleNotFoundError):
+        import_module("django_dto_field.fields.char")
 
 
 @pytest.mark.parametrize(
     "field_class, parent",
     [
-        (DTOCharField, models.CharField),
         (DTOBinaryField, models.BinaryField),
         (DTOJSONField, models.JSONField),
     ],
@@ -102,27 +105,14 @@ def test_django_null_and_blank_validation(field_class, value, code):
     assert error.value.code == code
 
 
-def test_char_max_length_accepts_exact_serialized_length():
-    field = DTOCharField(max_length=7)
-    assert field.clean({"a": 1}, None) == {"a": 1}
-
-
-def test_char_max_length_applies_to_serialized_text():
-    field = DTOCharField(max_length=5)
-    with pytest.raises(ValidationError, match="at most 5"):
-        field.clean({"a": 1}, None)
-
-
-@pytest.mark.parametrize("field_class", [DTOCharField, DTOBinaryField])
 @pytest.mark.parametrize("encoded", [b'{"identifier":1}', '{"identifier":1}'])
-def test_encoded_values_are_decoded(field_class, encoded):
-    field = field_class(schema=User)
+def test_binary_encoded_values_are_decoded(encoded):
+    field = DTOBinaryField(schema=User)
     assert field.to_python(encoded) == User(1)
 
 
-@pytest.mark.parametrize("field_class", [DTOCharField, DTOBinaryField])
-def test_malformed_json_is_rejected(field_class):
-    field = field_class(schema=User)
+def test_binary_malformed_json_is_rejected():
+    field = DTOBinaryField(schema=User)
     with pytest.raises(ValidationError):
         field.to_python("not json")
 
@@ -133,16 +123,14 @@ def test_unsupported_schema_raises_django_error(field_class):
         field_class(schema=str)
 
 
-@pytest.mark.parametrize("field_class", [DTOCharField, DTOBinaryField])
-def test_expressions_are_not_serialized(field_class):
+def test_binary_expressions_are_not_serialized():
     expression = models.F("payload")
-    assert field_class().get_prep_value(expression) is expression
+    assert DTOBinaryField().get_prep_value(expression) is expression
 
 
-@pytest.mark.parametrize("field_class", [DTOCharField, DTOBinaryField])
-def test_storage_encoding_errors_are_django_errors(field_class):
+def test_binary_storage_encoding_errors_are_django_errors():
     with pytest.raises(DTOFieldError):
-        field_class().get_prep_value({"invalid_unicode": "\ud800"})
+        DTOBinaryField().get_prep_value({"invalid_unicode": "\ud800"})
 
 
 @pytest.mark.parametrize("field_class", FIELDS)

@@ -127,11 +127,9 @@ def test_blank_does_not_allow_sql_null_in_nonnullable_field():
     assert not OptionalSettings.objects.exists()
 
 
-@pytest.mark.parametrize("field_name", ("text", "binary", "json"))
+@pytest.mark.parametrize("field_name", ("binary", "json"))
 def test_full_clean_validators_receive_storage_values(field_name):
-    instance = ValidatedModel(
-        text={"allowed": True}, binary={"allowed": True}, json={"allowed": True}
-    )
+    instance = ValidatedModel(binary={"allowed": True}, json={"allowed": True})
     instance.full_clean()
     setattr(instance, field_name, {"allowed": False})
     with pytest.raises(ValidationError) as error:
@@ -140,46 +138,42 @@ def test_full_clean_validators_receive_storage_values(field_name):
 
 
 def test_model_form_reports_storage_validator_errors():
-    form_class = forms.modelform_factory(ValidatedModel, fields=["text", "json"])
-    form = form_class(data={"text": '{"allowed":false}', "json": '{"allowed":false}'})
+    form_class = forms.modelform_factory(ValidatedModel, fields=["json"])
+    form = form_class(data={"json": '{"allowed":false}'})
     assert not form.is_valid()
-    assert set(form.errors) == {"text", "json"}
+    assert set(form.errors) == {"json"}
 
 
-@pytest.mark.parametrize("field_name", ("text", "binary"))
-def test_serialized_length_exact_boundary_is_valid(field_name):
-    form_class = forms.modelform_factory(LengthModel, fields=[field_name])
-    form = form_class(data={field_name: '{"x":"ab"}'})
+def test_serialized_length_exact_boundary_is_valid():
+    form_class = forms.modelform_factory(LengthModel, fields=["binary"])
+    form = form_class(data={"binary": '{"x":"ab"}'})
     assert form.is_valid(), form.errors
 
 
-def test_unicode_length_counts_text_characters_and_binary_bytes():
-    instance = LengthModel(text={"x": "éé"}, binary={"x": "éé"})
+def test_unicode_length_counts_binary_bytes():
+    instance = LengthModel(binary={"x": "éé"})
     with pytest.raises(ValidationError) as error:
         instance.full_clean()
     assert set(error.value.message_dict) == {"binary"}
 
 
-@pytest.mark.parametrize("field_name", ("text", "binary"))
-def test_model_form_rejects_serialized_length_overflow(field_name):
-    form_class = forms.modelform_factory(LengthModel, fields=[field_name])
-    form = form_class(data={field_name: '{"x":"abc"}'})
+def test_model_form_rejects_serialized_length_overflow():
+    form_class = forms.modelform_factory(LengthModel, fields=["binary"])
+    form = form_class(data={"binary": '{"x":"abc"}'})
     assert not form.is_valid()
-    assert field_name in form.errors
+    assert "binary" in form.errors
 
 
 def test_mapping_result_adapter_model_form_round_trip():
-    form_class = forms.modelform_factory(MappingModel, fields=["text", "json"])
+    form_class = forms.modelform_factory(MappingModel, fields=["json"])
     instance = MappingModel.objects.create(
-        text={"identifier": 1}, binary={"identifier": 1}, json={"identifier": 1}
+        binary={"identifier": 1}, json={"identifier": 1}
     )
-    form = form_class(
-        instance=instance, data={"text": '{"identifier":2}', "json": '{"identifier":2}'}
-    )
+    form = form_class(instance=instance, data={"json": '{"identifier":2}'})
     assert form.is_valid(), form.errors
     form.save()
     instance.refresh_from_db()
-    assert instance.text == instance.json == {"identifier": 2}
+    assert instance.json == {"identifier": 2}
 
 
 @pytest.mark.parametrize("invalid", (False, True))

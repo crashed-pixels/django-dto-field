@@ -95,7 +95,7 @@ def test_json_containment_accepts_partial_mapping(order):
     assert Order.objects.filter(snapshot__contains={"customer": "Alice"}).get() == order
 
 
-@pytest.mark.parametrize("field_name", ("snapshot", "text", "binary"))
+@pytest.mark.parametrize("field_name", ("snapshot", "binary"))
 def test_instance_f_expression_survives_save_and_refresh(order, field_name):
     before = getattr(order, field_name)
     setattr(order, field_name, F(field_name))

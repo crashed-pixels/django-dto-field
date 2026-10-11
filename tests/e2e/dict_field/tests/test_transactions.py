@@ -7,7 +7,7 @@ from django.db import connection, transaction
 from dict_field.models import Address, AuditEvent, DataclassModel, Order, UserDTO
 
 pytestmark = pytest.mark.django_db(transaction=True)
-FIELDS = ("text", "binary", "json")
+FIELDS = ("binary", "json")
 
 
 def test_bulk_import_reconstructs_dictionary_inputs():

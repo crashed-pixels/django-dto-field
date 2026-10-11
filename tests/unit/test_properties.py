@@ -10,11 +10,9 @@ from hypothesis import strategies as st
 from django_dto_field.conversion.converter import DTOConverter
 from django_dto_field.exceptions.base import DTOValidationError
 from django_dto_field.fields.binary import DTOBinaryField
-from django_dto_field.fields.char import DTOCharField
 from django_dto_field.fields.json import DTOJSONField
 from django_dto_field.storage.binary import BinaryStorage
 from django_dto_field.storage.json import JSONStorage
-from django_dto_field.storage.text import TextStorage
 
 TEXT = st.text(alphabet=st.characters(exclude_categories=("Cs",)), max_size=40)
 SCALARS = st.one_of(
@@ -47,7 +45,7 @@ class Event:
 @given(JSON_OBJECTS)
 def test_recursive_json_round_trip_across_every_storage(payload):
     converter = DTOConverter(dict)
-    for storage in [TextStorage(), BinaryStorage(), JSONStorage()]:
+    for storage in [BinaryStorage(), JSONStorage()]:
         restored = converter.from_data(
             storage.decode(storage.encode(converter.to_data(payload)))
         )
@@ -56,7 +54,7 @@ def test_recursive_json_round_trip_across_every_storage(payload):
 
 @given(st.builds(Event, st.integers(), TEXT, st.dates(), st.lists(TEXT, max_size=5)))
 def test_dataclass_field_round_trip_and_identity(event):
-    for field_class in [DTOCharField, DTOBinaryField, DTOJSONField]:
+    for field_class in [DTOBinaryField, DTOJSONField]:
         field = field_class(schema=Event)
         assert field.to_python(event) is event
         prepared = field.get_prep_value(event)
