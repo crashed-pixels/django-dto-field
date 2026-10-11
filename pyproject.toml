@@ -1,6 +1,6 @@
 [project]
 name = "django-dto-field"
-version = "0.1.0"
+version = "0.2.0"
 description = "Storing DTO data in easy-to-use and production-ready Django Model Field with fast [de]serialization."
 authors = [{ name = "skv0zsneg", email = "<klimentlamonov@yandex.ru>" }]
 requires-python = ">=3.10,<4.0"
