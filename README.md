@@ -32,7 +32,7 @@ For Django developers who want to store structures in model fields but do not wa
 2. [No schema is set](#no-schema-is-set)
 3. [Supported DTO types](#supported-dto-types)
 4. [Django Fields](#django-fields)
-    1. [DTOJSONField](#dtojsonfield)
+    1. [DTOField](#dtofield)
     2. [DTOBinaryField](#dtobinaryfield)
 5. [Supported versions and databases](#supported-versions-and-databases)
 6. [Help and contribute](#help-and-contribute)
@@ -40,7 +40,7 @@ For Django developers who want to store structures in model fields but do not wa
 
 ## Quick start
 
-Django itself have a `JSONField` for storing structures in JSON comparable format. But it have some restrictions. Let's see it through comparing `JSONField` and `DTOJSONField` on one task.
+Django itself have a `JSONField` for storing structures in JSON comparable format. But it have some restrictions. Let's see it through comparing `JSONField` and `DTOField` on one task.
 
 First, installing:
 
@@ -65,20 +65,20 @@ class Customer:
     address: Address
 ```
 
-And you want to store it in Django model. For behavior comparing lets use original `JSONField` and `django-dto-field`'s `DTOJSONField`.
+And you want to store it in Django model. For behavior comparing lets use original `JSONField` and `django-dto-field`'s `DTOField`.
 
 ```python
 # app/models.py
 
 from django.db.models import Model, JSONField
-from django_dto_field.fields.json import DTOJSONField
+from django_dto_field.fields.json import DTOField
 from app.my_dto import Customer
 
 class DjangoOrder(Model):
     customer = JSONField()
 
 class DTOOrder(Model):
-    customer = DTOJSONField(schema=Customer)
+    customer = DTOField(schema=Customer)
 ```
 
 After migrations let's launch Django shell.
@@ -150,7 +150,7 @@ Now let's do the same with `django-dto-field`.
 ... }
 
 >>> try:
-...     # Note that DTOJSONField accept dict and convert it to dataclass under the hood.
+...     # DTOField also accepts dictionaries and validates them against the dataclass schema.
 ...     DTOOrder.objects.create(customer=invalid_customer)
 ... except ValidationError:
 ...     print("The schema is invalid!")
@@ -170,7 +170,7 @@ Loading returns a `dict`.
 
 ```python
 >>> class Event(models.Model):
-...     details = DTOJSONField(default=dict)
+...     details = DTOField(default=dict)
 
 >>> event = Event.objects.create(details={"kind": "signup"})
 >>> event.refresh_from_db()
@@ -190,7 +190,7 @@ We support some Django fields making wrapper around them to provide `django-dto-
 accepts its Django base field's options, such as `null` and `blank`.
 
 Schema validation runs on assignment by default, including model construction.
-Set `DTOJSONField(schema=Customer, validate_on_assignment=False)` on a field to defer validation until conversion
+Set `DTOField(schema=Customer, validate_on_assignment=False)` on a field to defer validation until conversion
 or saving. In-place changes to a DTO or dictionary are checked on save.
 SQL expressions bypass literal-value validation. DTO results are checked on load.
 Call `full_clean()` to run Django field validators; they receive the stored
@@ -199,9 +199,10 @@ mapping or bytes.
 For optional form input, use `null=True, blank=True`, or submit `{}` for an empty
 dictionary; `blank=True` alone does not allow SQL NULL.
 
-### `DTOJSONField`
+### `DTOField`
 
-You are already familiar with this field from [quick start](#quick-start).
+`DTOField` wraps Django's `JSONField` to store DTOs as native JSON. You are
+already familiar with this field from [quick start](#quick-start).
 
 - Storing native JSON values in DB. 
 - Using Django `JSONField` as base.

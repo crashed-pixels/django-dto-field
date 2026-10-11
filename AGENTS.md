@@ -22,7 +22,7 @@
 - `MsgspecAdapter` is the default for dicts/dataclasses; third-party integrations are extension points, not bundled support. `DTOConverter.to_data()` validates dumped mappings by loading them through the adapter. Keep that step so mutated DTOs are checked. Test-only custom-object and dict-result adapters live in `tests/e2e/dict_field/adapters.py`.
 - Dataclasses require an explicit, importable schema; the default is `dict`. `deconstruct()` preserves schema. Schema validation runs on assignment by default, conversion, and literal writes; full field validators still require `full_clean()`.
 - Validators receive storage values (JSON mapping or bytes); binary `max_length` measures serialized bytes. Saving dictionary input does not replace the in-memory attribute with a DTO; `full_clean()` or `refresh_from_db()` performs that conversion. Binary fields retain Django's `editable=False` default.
-- JSON key lookups accept partial/scalar operands and projections return native values. Do not apply whole-DTO validation in `DTOJSONField.get_prep_value()` or to `KeyTransform` results. Preserve the distinction between SQL NULL and `Value(None)` JSON null.
+- JSON key lookups accept partial/scalar operands and projections return native values. Do not apply whole-DTO validation in `DTOField.get_prep_value()` or to `KeyTransform` results. Preserve the distinction between SQL NULL and `Value(None)` JSON null.
 - The `TYPE_CHECKING` base aliases supply Django field generics to mypy without runtime subscription.
 
 ## Documentation

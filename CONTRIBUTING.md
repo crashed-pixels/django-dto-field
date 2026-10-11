@@ -4,7 +4,7 @@ Thank you for your interest in contributing! This document provides guidelines a
 
 ## Project Overview
 
-`django-dto-field` provides `DTOBinaryField` and `DTOJSONField` for storing dictionaries and typed dataclasses using native Django storage representations.
+`django-dto-field` provides `DTOField` (native JSON) and `DTOBinaryField` (bytes) for storing dictionaries and typed dataclasses using native Django storage representations.
 
 **Core Tech Stack:**
 *   **Python:** 3.10 - 3.14

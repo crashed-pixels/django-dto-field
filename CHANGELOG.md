@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** rename the JSON-backed `DTOJSONField` to `DTOField`, imported from `django_dto_field.fields.json`. Native JSON storage and field behavior are unchanged. The old name is removed; application imports and historical migration references must be updated.
+
 ### Removed
 
-- **Breaking:** remove `DTOCharField` and its `TextStorage` implementation. Supported DTO model fields are now `DTOJSONField` and `DTOBinaryField`; imports of the removed field in application code or historical migrations must be updated.
+- **Breaking:** remove `DTOCharField` and its `TextStorage` implementation. Supported DTO model fields are now `DTOField` and `DTOBinaryField`; imports of the removed field in application code or historical migrations must be updated.
 
 ## [0.2.0] 2026-10-09
 
