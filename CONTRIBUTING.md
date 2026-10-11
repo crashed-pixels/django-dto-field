@@ -154,7 +154,7 @@ lookup. Whole-value exact JSON lookups remain covered.
 ## Submitting a Pull Request
 
 Documentation, tests, bug fixes, and adapter proposals are welcome. For larger
-changes, open an [issue](https://github.com/skv0zsneg/django-dto-field/issues) first
+changes, open an [issue](https://github.com/crashed-pixels/django-dto-field/issues) first
 to discuss the intended behavior. Bug reports should include a minimal example,
 Python and Django versions, and expected versus actual results.
 
