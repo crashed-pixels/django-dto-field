@@ -50,7 +50,6 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     Supported fields:
 
     * :class:`~django_dto_field.fields.binary.DTOBinaryField` for binary columns.
-    * :class:`~django_dto_field.fields.char.DTOCharField` for text columns.
     * :class:`~django_dto_field.fields.json.DTOJSONField` for native JSON columns.
 
     Schema
@@ -118,15 +117,14 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
 
     Basic usage of mixin is:
 
-    >>> from django.db.models import CharField
-    >>> from django_dto_field.storage.text import TextStorage
-    >>> class MyDTOField(DTOFieldMixin, CharField):
-    ...     storage = TextStorage()
+    >>> from django.db.models import BinaryField
+    >>> from django_dto_field.storage.binary import BinaryStorage
+    >>> class MyDTOField(DTOFieldMixin, BinaryField):
+    ...     storage = BinaryStorage()
 
     Storage strategies convert mappings to native Django field values:
 
     * :class:`~django_dto_field.storage.json.JSONStorage` leaves JSON values native.
-    * :class:`~django_dto_field.storage.text.TextStorage` produces JSON text.
     * :class:`~django_dto_field.storage.binary.BinaryStorage` produces JSON bytes.
     """
 

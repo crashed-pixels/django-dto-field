@@ -1,1 +1,1 @@
-"""Native JSON, text, and binary representations for DTO mappings."""
+"""Native JSON and binary representations for DTO mappings."""
