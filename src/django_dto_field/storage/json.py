@@ -6,7 +6,7 @@ from typing import Any
 class JSONStorage:
     """Return native JSON values without additional encoding.
 
-    Used by :class:`~django_dto_field.fields.json.DTOJSONField`. Django's backend
+    Used by :class:`~django_dto_field.fields.json.DTOField`. Django's backend
     handles JSON encoding; decoded values pass through unchanged.
     """
 

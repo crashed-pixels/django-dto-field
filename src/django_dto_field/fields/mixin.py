@@ -50,7 +50,7 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     Supported fields:
 
     * :class:`~django_dto_field.fields.binary.DTOBinaryField` for binary columns.
-    * :class:`~django_dto_field.fields.json.DTOJSONField` for native JSON columns.
+    * :class:`~django_dto_field.fields.json.DTOField` for native JSON columns.
 
     Schema
     ------
@@ -89,9 +89,9 @@ class DTOFieldMixin(Field, Generic[DTO]):  # noqa: WPS214
     And define Django model like this:
 
     >>> from django.db import models
-    >>> from django_dto_field.fields.json import DTOJSONField
+    >>> from django_dto_field.fields.json import DTOField
     >>> class Order(models.Model):
-    ...     customer = DTOJSONField(schema=Customer)
+    ...     customer = DTOField(schema=Customer)
 
     Save an instance after creating the model's database table:
 

@@ -16,7 +16,7 @@ else:
     JSONField = models.JSONField
 
 
-class DTOJSONField(DTOFieldMixin[DTO], JSONField):
+class DTOField(DTOFieldMixin[DTO], JSONField):
     """Combine DTO conversion with Django's native JSON field.
 
     Whole values are validated using the selected schema. Key lookup operands
@@ -51,7 +51,7 @@ class DTOJSONField(DTOFieldMixin[DTO], JSONField):
     ) -> Any:
         prepared = value
         if isinstance(prepared, models.Value) and isinstance(
-            prepared.output_field, DTOJSONField
+            prepared.output_field, DTOField
         ):
             # Value(None) represents JSON null rather than SQL NULL.
             if prepared.value is not None:
