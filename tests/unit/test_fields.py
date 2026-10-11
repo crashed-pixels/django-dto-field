@@ -8,7 +8,7 @@ from django.db import connection, models
 from django_dto_field.exceptions.base import DTOError
 from django_dto_field.exceptions.django import DTOFieldError
 from django_dto_field.fields.binary import DTOBinaryField
-from django_dto_field.fields.json import DTOJSONField
+from django_dto_field.fields.json import DTOField
 
 
 @dataclass
@@ -16,7 +16,12 @@ class User:
     identifier: int
 
 
-FIELDS = [DTOBinaryField, DTOJSONField]
+FIELDS = [DTOBinaryField, DTOField]
+
+
+def test_json_field_uses_new_public_name_in_migrations():
+    _, path, _, _ = DTOField(schema=User).deconstruct()
+    assert path == "django_dto_field.fields.json.DTOField"
 
 
 def test_character_field_module_is_no_longer_available():
@@ -28,7 +33,7 @@ def test_character_field_module_is_no_longer_available():
     "field_class, parent",
     [
         (DTOBinaryField, models.BinaryField),
-        (DTOJSONField, models.JSONField),
+        (DTOField, models.JSONField),
     ],
 )
 def test_native_field_inheritance(field_class, parent):

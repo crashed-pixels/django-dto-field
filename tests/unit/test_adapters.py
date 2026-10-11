@@ -8,7 +8,7 @@ from django_dto_field.conversion.converter import DTOConverter
 from django_dto_field.exceptions.base import DTOValidationError, SchemaError
 from django_dto_field.exceptions.django import DTOFieldError
 from django_dto_field.fields.binary import DTOBinaryField
-from django_dto_field.fields.json import DTOJSONField
+from django_dto_field.fields.json import DTOField
 
 
 def test_explicit_adapter_decouples_schema_from_dto_type():
@@ -52,7 +52,7 @@ def test_converter_checks_common_shape_and_instance_requirements():
         converter.to_data(object())
 
 
-@pytest.mark.parametrize("field_class", [DTOBinaryField, DTOJSONField])
+@pytest.mark.parametrize("field_class", [DTOBinaryField, DTOField])
 def test_custom_adapter_survives_migration_serialization(field_class):
     field = field_class(schema=MessageSchema, adapter=MessageAdapter, max_length=100)
     source, imports = MigrationWriter.serialize(field)
@@ -66,12 +66,12 @@ def test_custom_adapter_survives_migration_serialization(field_class):
     assert restored.to_python(message) is message
 
 
-@pytest.mark.parametrize("field_class", [DTOBinaryField, DTOJSONField])
+@pytest.mark.parametrize("field_class", [DTOBinaryField, DTOField])
 def test_default_adapter_is_omitted_from_migrations(field_class):
     assert "adapter" not in field_class().deconstruct()[3]
 
 
-@pytest.mark.parametrize("field_class", [DTOBinaryField, DTOJSONField])
+@pytest.mark.parametrize("field_class", [DTOBinaryField, DTOField])
 def test_custom_adapter_errors_use_the_django_boundary(field_class):
     field = field_class(schema=MessageSchema, adapter=MessageAdapter)
     with pytest.raises(DTOFieldError) as error:
@@ -84,7 +84,7 @@ def test_custom_adapter_errors_use_the_django_boundary(field_class):
 
 
 def test_mapping_result_adapter_preserves_partial_json_lookup_operands():
-    field = DTOJSONField(schema=MessageSchema, adapter=MappingAdapter)
+    field = DTOField(schema=MessageSchema, adapter=MappingAdapter)
     assert field.to_python({"identifier": 1}) == {"identifier": 1}
     partial = {"another_key": "lookup operand"}
     assert field.get_prep_value(partial) is partial
@@ -94,6 +94,6 @@ def test_mapping_result_adapter_preserves_partial_json_lookup_operands():
 
 
 def test_builtin_adapter_can_be_selected_explicitly():
-    field = DTOJSONField(adapter=MsgspecAdapter)
+    field = DTOField(adapter=MsgspecAdapter)
     assert field.to_python({"a": 1}) == {"a": 1}
     assert field.deconstruct()[3]["adapter"] is MsgspecAdapter
