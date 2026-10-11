@@ -7,14 +7,14 @@ Thank you for your interest in contributing! This document provides guidelines a
 `django-dto-field` provides `DTOField` (native JSON) and `DTOBinaryField` (bytes) for storing dictionaries and typed dataclasses using native Django storage representations.
 
 **Core Tech Stack:**
-*   **Python:** 3.10 - 3.14
-*   **Framework:** Django >= 5.2
+*   **Python:** 3.10–3.14
+*   **Framework:** Django 5.2 (Python 3.10–3.14) and 6.0–6.1 (Python 3.12–3.14)
 *   **Serialization:** `msgspec` (for high-performance encoding/decoding)
 *   **Build & Package Management:** `uv`
 
 ## Getting Started
 
-We use `uv` for dependency management and virtual environments.
+We use `uv` for dependency management and virtual environments. Clone the repository and run the commands below from its root directory.
 
 1.  **Install `uv`** (if you haven't already):
     ```bash
@@ -24,14 +24,14 @@ We use `uv` for dependency management and virtual environments.
     ```bash
     uv sync
     ```
-    *(Note: `uv sync` automatically installs all dev dependencies and sets up the virtual environment based on `uv.lock`).*
+    *`uv sync` installs the library and the default `dev` dependency group, and creates a virtual environment using `uv.lock`.*
 
 ## Code Quality & Standards
 
 We maintain strict code quality standards. CI will fail if any of the following are not met:
 
 ### 1. 100% Test Coverage
-We require **100% statement and branch coverage** for all new and existing runtime code. Type-checking-only imports are excluded from runtime coverage.
+We require **100% statement and branch coverage** for all new and existing runtime code in `src/`. `TYPE_CHECKING` blocks are excluded in addition to coverage.py's default exclusions.
 *   Tests are written using `pytest`, `pytest-django`, and `hypothesis`.
 *   Use Hypothesis for properties such as storage round trips and recursive JSON values. Keep ORM example counts bounded; do not suppress health checks to work around shared fixture state.
 *   Coverage is enforced via `pytest-cov`.
@@ -47,25 +47,25 @@ We require **100% statement and branch coverage** for all new and existing runti
 
 ### 3. Linting and Formatting
 We use a hybrid approach for linting to ensure both modern formatting and strict architectural rules:
-*   **Ruff:** Checks Python errors and imports, and formats both `src/` and `tests/`.
+*   **Ruff:** Checks Python errors and import ordering, verifies docstring presence in `src/`, and formats both `src/` and `tests/`.
 *   **Flake8 + Wemake Python Styleguide (WPS):** Checks `src/` with WPS rules. Django override parameter names are retained for keyword compatibility, with narrow inline suppressions where necessary.
 *   Package `__init__.py` files contain only docstrings, with no executable code or re-exports. Import classes from concrete modules.
 *   Document source modules and classes in reStructuredText for Sphinx. Use literal double backticks, qualified `:class:` references, and `:param:` / `:raises:` fields where useful. `make lint` checks that module, package, and public-class docstrings exist.
 
-Run `make format` to automatically fix formatting and import issues.
+Run `make format` to apply Ruff's available automatic fixes and format the code. Run `make lint` to check all linting rules.
 
 ## Development Commands
 
-We use a `Makefile` to standardize development workflows. All commands automatically run inside the `uv` virtual environment.
+We use a `Makefile` to standardize development workflows. Python tools run through `uv` in the project's virtual environment; cache cleanup runs directly in the shell.
 
 | Command | Description |
 | :--- | :--- |
 | `make test` | Run all unit and Django E2E tests with statement/branch coverage (alias for `make unit`). |
-| `make e2e` | Run Django E2E tests on the selected database (SQLite by default). |
+| `make e2e` | Run Django E2E tests on the selected database (SQLite by default), without parallel workers or the coverage gate. Uses already-installed dependencies. |
 | `make typing` | Run strict `mypy` type checks on the `src` directory. |
-| `make lint` | Run Ruff lint/format checks on source and tests, and WPS checks on source. |
-| `make format` | Auto-fix imports (`ruff`) and format code (`ruff format`). |
-| `make all-checks` | Clean caches and run linting, typing, and tests (Recommended before PR). |
+| `make lint` | Run Ruff lint/format checks on source and tests, plus docstring-presence and WPS checks on source. |
+| `make format` | Apply Ruff's available automatic fixes and format source and tests. |
+| `make all-checks` | Clean caches and coverage output, then run linting, typing, and tests (recommended before a PR). |
 
 The E2E test app is unmigrated: Django creates its tables from the current
 models when pytest sets up the test database. Changes to test models do not
@@ -79,8 +79,8 @@ feature flags, and key projections are compared with native `JSONField` behavior
 
 ### E2E tests on SQL databases
 
-The library supports SQLite, PostgreSQL, MySQL, and MariaDB. `make test` runs
-the entire suite on SQLite without Docker. To run the E2E suite on another backend,
+The library supports SQLite, PostgreSQL, MySQL, and MariaDB. By default, `make test`
+runs the entire suite on SQLite without Docker. To run the E2E suite on another backend,
 start its Docker Compose service, install the corresponding test driver, and set
 `DTO_TEST_DB`:
 
@@ -101,7 +101,9 @@ docker compose --profile postgresql down -v
 For MySQL and MariaDB, install the MySQL client development libraries first
 (for example, `brew install mysql-client pkg-config` on macOS or
 `sudo apt-get install default-libmysqlclient-dev pkg-config` on Ubuntu), then
-run `uv sync --group mysql`. PostgreSQL uses the
+run `uv sync --group mysql`. On macOS, set
+`PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"` when running
+`uv sync` so it can compile `mysqlclient`. PostgreSQL uses the
 driver from the default dev dependencies. Substitute the backend name in the
 Compose and `make e2e` commands above.
 
@@ -112,7 +114,7 @@ and destroys an isolated test database on every run.
 
 ### Python, Django, and database matrix
 
-Every PR and push to `dev` or `main` runs 10 tox environments:
+Every PR targeting `dev` or `main`, and every push to either branch, runs 10 tox environments:
 
 | Python | Django | Database | Jobs |
 | :--- | :--- | :--- | ---: |
@@ -126,13 +128,13 @@ database environments run the E2E suite. These representative combinations cover
 every supported Python and Django version without testing the full cross-product.
 Superseded workflow runs are cancelled automatically.
 
-Run the default SQLite environment locally with `uvx --with tox-uv tox`. To
+Run the default Python 3.14 / Django 6.1 / SQLite environment locally with `uvx --with tox-uv tox`. To
 select a combination, use `py<version>-django<version>-<database>`:
 
 ```bash
 uvx --with tox-uv tox -e py312-django52-sqlite
 docker compose --profile postgresql up -d --wait postgresql
-uvx --with tox-uv tox -e py312-django52-postgresql
+uvx --with tox-uv tox -e py314-django61-postgresql
 docker compose --profile postgresql down -v
 ```
 
@@ -159,7 +161,7 @@ Python and Django versions, and expected versus actual results.
 Before opening a PR, please ensure:
 1.  Your code passes `make all-checks` locally.
 2.  Test coverage remains at 100%.
-3.  Commit messages are clear and follow conventional commits (optional but appreciated).
+3.  Commit messages are clear; following Conventional Commits is optional but appreciated.
 4.  You have updated the documentation/docstrings if you changed public APIs.
 
 Thank you for helping make `django-dto-field` better!
