@@ -26,6 +26,117 @@
 
 For Django developers who want to store structures in model fields but do not want to manually serialize dictionaries into DTO objects and vice versa. `django-dto-field` hide converting logic and gives you original Django interface.
 
+## `JSONField` vs `django-dto-field`
+
+Django itself have a `JSONField` for storing JSON comparable data. But it have some restrictions. Let's see it through example.
+
+Assume that you have this `dataclass` DTO.
+
+```python
+# app/my_dto.py
+
+from dataclasses import dataclass
+
+@dataclass
+class Address:
+    city: str
+
+@dataclass
+class Customer:
+    name: str
+    address: Address
+```
+
+And you want to store it in Django model. For behavior comparing lets use original `JSONField` and `django-dto-field`'s `DTOJSONField`.
+
+```python
+# app/models.py
+
+from django.db.models import Model, JSONField
+from django_dto_field.fields.json import DTOJSONField
+from app.my_dto import Customer
+
+class DjangoOrder(Model):
+    customer = JSONField()
+
+class DTOOrder(Model):
+    customer = DTOJSONField(schema=Customer)
+```
+
+After migrations let's launch Django shell.
+
+Assume that you what to store customer info like below.
+
+```python
+>>> from app.my_dto import Customer
+>>> customer = Customer(name="Alice", address=Address(city="London"))
+```
+
+Let's try to store and loading it with `JSONField`.
+
+```python
+>>> from dataclasses import asdict
+>>> from app.models import DjangoOrder
+
+>>> # Have to explicitly serialize `dataclass` to `dict` type.
+>>> order = DjangoOrder.objects.create(customer=asdict(customer))
+>>> order.refresh_from_db()
+
+>>> # Loading returns dict, including the nested, but not dataclass.
+>>> assert isinstance(order.customer, dict)
+>>> assert isinstance(order.customer["address"], dict)
+>>> assert typed_order.customer["address"]["city"] ==  "London"
+
+>>> # Can use Django JSON lookups.
+>>> DjangoOrder.objects.filter(customer__address__city="London")
+
+>>> # Have to reconstruct each dataclass yourself.
+>>> payload = order.customer
+>>> customer = Customer(
+...     name=payload["name"],
+...     address=Address(**payload["address"]),
+... )
+
+>>> # Does not enforce the dataclass schema.
+>>> invalid_customer = {
+...     "name": "Alice",
+...     "address": {"city": 123},  # city should be a string
+... }
+
+>>> # No errors
+>>> DjangoOrder.objects.create(customer=invalid_customer)
+```
+
+Now let's do the same with `django-dto-field`.
+
+```python
+>>> from app.models import DTOOrder
+
+>>> # Save the same dataclass directly - no need to serialize.
+>>> order = DTOOrder.objects.create(customer=customer)
+>>> order.refresh_from_db()
+
+>>> # Loading automatically reconstructs the nested dataclasses - no need to deserialize.
+>>> assert isinstance(typed_order.customer, Customer)
+>>> assert isinstance(typed_order.customer.address, Address)
+>>> assert typed_order.customer.address.city ==  "London"
+
+>>> # Can use Django JSON lookups like in JSONField.
+>>> DTOOrder.objects.filter(customer__address__city="London")
+
+>>> # Rising validation error on wrong schema - no need to worry about broken data.
+>>> from django.core.exceptions import ValidationError
+>>> invalid_customer = {
+...     "name": "Alice",
+...     "address": {"city": 123},  # city should be a string
+... }
+
+>>> try:
+...     DTOOrder.objects.create(customer=invalid_customer)
+... except ValidationError:
+...     print("The schema is invalid!")
+```
+
 ## Features
 
 - [X] Python `dict` support by default
