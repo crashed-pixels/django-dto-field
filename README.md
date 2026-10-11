@@ -28,7 +28,7 @@ For Django developers who want to store structures in model fields but do not wa
 
 ## `JSONField` vs `django-dto-field`
 
-Django itself have a `JSONField` for storing JSON comparable data. But it have some restrictions. Let's see it through example.
+Django itself have a `JSONField` for storing structures in JSON comparable format. But it have some restrictions. Let's see it through example.
 
 Assume that you have this `dataclass` DTO.
 
@@ -124,7 +124,7 @@ Now let's do the same with `django-dto-field`.
 >>> # Can use Django JSON lookups like in JSONField.
 >>> DTOOrder.objects.filter(customer__address__city="London")
 
->>> # Rising validation error on wrong schema - no need to worry about broken data.
+>>> # Rising validation error on wrong schema - no need to worry about missing types.
 >>> from django.core.exceptions import ValidationError
 >>> invalid_customer = {
 ...     "name": "Alice",
@@ -136,6 +136,15 @@ Now let's do the same with `django-dto-field`.
 ... except ValidationError:
 ...     print("The schema is invalid!")
 ```
+
+As a result `django-dto-field` making usage:
+- Close to Django original behavior;
+- Cleaner so you can focus on business logic;
+- Saver through runtime validation;
+
+When not to use `django-dto-field`?
+
+If your structures changing very often it is prefer to use Django's `JSONField` and `dict` type, so you do not have to change DTO object every time.
 
 ## Features
 
