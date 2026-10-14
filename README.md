@@ -32,11 +32,12 @@ For Django developers who want to store structures in model fields but do not wa
 2. [No schema is set](#no-schema-is-set)
 3. [Supported DTO types](#supported-dto-types)
 4. [Django Fields](#django-fields)
-    1. [DTOField](#dtofield)
-    2. [DTOBinaryField](#dtobinaryfield)
+   1. [DTOField](#dtofield)
+   2. [DTOBinaryField](#dtobinaryfield)
 5. [Supported versions and databases](#supported-versions-and-databases)
-6. [Help and contribute](#help-and-contribute)
-7. [License](#license)
+6. [User-defined Adapters](#user-defined-adapters)
+7. [Help and contribute](#help-and-contribute)
+8. [License](#license)
 
 ## Quick start
 
