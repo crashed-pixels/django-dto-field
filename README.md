@@ -188,6 +188,101 @@ The default adapter supports dataclasses and dictionaries. Dataclasses require a
 
 If you would like support for another DTO type, please open an issue in the [issue tracker](https://github.com/crashed-pixels/django-dto-field/issues). You can also provide an importable `adapter=` class implementing `DTOAdapter` from `django_dto_field.adapters.base`. Pull requests are welcome!
 
+### User-defined adapters
+
+A custom adapter allows you to use DTO types beyond those supported by the default `MsgspecAdapter`, which handles dictionaries and dataclasses. It defines how DTO instances are recognized, converted into JSON-compatible dictionaries, and reconstructed from stored data.
+
+For example, an application using Pydantic models can provide a custom adapter to use Pydantic's validation and serialization features.
+
+A custom adapter must implement the `DTOAdapter` protocol:
+
+- `__init__(schema)`: Configure the adapter for the supplied schema class. Raise `SchemaError` if the schema is unsupported.
+- `is_instance(instance)`: Check whether an object matches the expected DTO type.
+- `to_data(instance)`: Convert a DTO instance into a dictionary containing JSON-compatible values. Raise `SerializationError` if serialization fails.
+- `from_data(payload)`: Validate dictionary data and reconstruct a DTO instance. Raise `DTOValidationError` if validation fails.
+
+The schema class does not have to be the same class as the DTO instance returned by the adapter. Pass the adapter class through the `adapter=` argument of `DTOField`, together with the appropriate `schema=`.
+
+**Advantages**
+- Supports third-party DTO libraries and custom data models.
+- Allows application-specific validation and conversion.
+- Integrates existing DTO implementations.
+
+**Limitations**
+- The adapter must implement the expected interface correctly.
+- Custom validation and conversion logic must be maintained.
+- The adapter must handle errors and return JSON-compatible dictionary data.
+
+**Example**
+
+The following example demonstrates a custom adapter for a simple user-defined DTO:
+
+```python
+from typing import Any, TypeGuard
+
+from django_dto_field.adapters.base import DTOAdapter
+from django_dto_field.exceptions.base import (
+    DTOValidationError,
+    SchemaError,
+    SerializationError,
+)
+
+
+class UserDTO:
+    def __init__(self, name: str, age: int) -> None:
+        self.name = name
+        self.age = age
+
+
+class UserAdapter(DTOAdapter[UserDTO]):
+    def __init__(self, schema: type[Any]) -> None:
+        if schema is not UserDTO:
+            raise SchemaError("Unsupported schema.")
+        self.schema = schema
+
+    def is_instance(self, instance: object) -> TypeGuard[UserDTO]:
+        return isinstance(instance, self.schema)
+
+    def to_data(self, instance: UserDTO) -> dict[str, Any]:
+        try:
+            name = instance.name
+            age = instance.age
+        except AttributeError as error:
+            raise SerializationError(
+                "Could not serialize UserDTO."
+            ) from error
+
+        if not isinstance(name, str) or type(age) is not int:
+            raise SerializationError("Invalid UserDTO attributes.")
+
+        return {"name": name, "age": age}
+
+    def from_data(self, payload: dict[str, Any]) -> UserDTO:
+        name = payload.get("name")
+        age = payload.get("age")
+
+        if not isinstance(name, str) or type(age) is not int:
+            raise DTOValidationError("Invalid user data.")
+
+        return self.schema(name=name, age=age)
+```
+
+Use the custom adapter in a Django model by passing it to `DTOField` alongside the schema:
+
+```python
+from django.db import models
+from django_dto_field.fields.json import DTOField
+
+
+class UserRecord(models.Model):
+    user = DTOField(
+        schema=UserDTO,
+        adapter=UserAdapter,
+    )
+```
+
+In this example, `to_data()` converts a `UserDTO` instance into a JSON-compatible dictionary, while `from_data()` validates stored data and reconstructs the DTO. The adapter raises the appropriate project-specific exceptions for unsupported schemas, invalid attributes, and invalid input data.
+
 ## Django Fields
 
 The library wraps Django's JSON and binary model fields to add DTO conversion and validation. Each field
