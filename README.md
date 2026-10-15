@@ -31,13 +31,14 @@ For Django developers who want to store structures in model fields but do not wa
 1. [Quick start](#quick-start)
 2. [No schema is set](#no-schema-is-set)
 3. [Supported DTO types](#supported-dto-types)
+   1. [User-defined adapters](#user-defined-adapters)
 4. [Django Fields](#django-fields)
    1. [DTOField](#dtofield)
    2. [DTOBinaryField](#dtobinaryfield)
 5. [Supported versions and databases](#supported-versions-and-databases)
-6. [User-defined Adapters](#user-defined-adapters)
-7. [Help and contribute](#help-and-contribute)
-8. [License](#license)
+6. [Help and contribute](#help-and-contribute)
+7. [License](#license)
+
 
 ## Quick start
 
@@ -327,7 +328,7 @@ Define this model in `app/models.py`:
 - Stores UTF-8 JSON bytes in the database.
 - Inherits from Django's `BinaryField`.
 - Is not editable by default, as with Django's `BinaryField`; set `editable=True` to include it in ModelForms.
-
+  
 ## Supported versions and databases
 
 - Python 3.10–3.14.
