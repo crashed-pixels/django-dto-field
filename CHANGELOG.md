@@ -6,8 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-Added
-README documentation for user-defined adapters, including their advantages, limitations, and a practical use case.
+### Added
+- README documentation for user-defined adapters, including their advantages, limitations, and a practical use case.
 
 ### Fixed
 
@@ -16,7 +16,6 @@ README documentation for user-defined adapters, including their advantages, limi
 ## [1.0.0] 2026-10-11
 
 ### Added
-
 - Contributor Covenant 2.1 `CODE_OF_CONDUCT.md` with a private reporting contact and a link from the contribution guide.
 - A README comparison of Django's `JSONField` and `DTOField` using the same nested dataclasses, showing automatic conversion, schema validation, and JSON lookups.
 - A README table of contents and a monthly PyPI downloads badge.
